@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScrumBoard — Tableau de bord Agile</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#151821; --surface2:#1c2030; --surface3:#242840;
+    --border:#2a2f45; --accent:#4f8ef7; --accent2:#7c5cfc;
+    --green:#3ecf8e; --orange:#f79c4f; --red:#f76f6f; --yellow:#f7d44f; --purple:#a78bfa;
+    --text:#e8eaf0; --text2:#9099b5; --text3:#5a6180;
+    --mono:'Space Mono',monospace; --sans:'DM Sans',sans-serif;
+    --radius:12px; --radius-sm:8px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+
+  /* SIDEBAR */
+  .sidebar{width:224px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:24px 0;flex-shrink:0;position:sticky;top:0;height:100vh;}
+  .logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+  .logo-title{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--accent);letter-spacing:.05em;}
+  .logo-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+  .nav-section{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;padding:10px 20px 4px;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2);transition:all .15s;border-left:2px solid transparent;margin:1px 0;}
+  .nav-item:hover{color:var(--text);background:var(--surface2);}
+  .nav-item.active{color:var(--accent);background:rgba(79,142,247,.08);border-left-color:var(--accent);}
+  .nav-icon{font-size:15px;width:18px;text-align:center;}
+  .sidebar-footer{margin-top:auto;padding:16px 20px 0;border-top:1px solid var(--border);}
+  .team-badge{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:12px;cursor:pointer;transition:border-color .15s;}
+  .team-badge:hover{border-color:var(--text3);}
+  .team-badge .label{color:var(--text3);margin-bottom:2px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;}
+  .team-badge .name{color:var(--text);font-weight:600;}
+
+  /* MAIN */
+  .main{flex:1;min-height:100vh;overflow-y:auto;}
+  .page{display:none;padding:32px;}
+  .page.active{display:block;}
+  .page-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;}
+  .page-title{font-size:22px;font-weight:700;color:var(--text);}
+  .page-sub{font-size:13px;color:var(--text3);margin-top:4px;}
+
+  /* BUTTONS */
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-sm);font-family:var(--sans);font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;}
+  .btn-primary{background:var(--accent);color:#fff;} .btn-primary:hover{background:#3a7af0;}
+  .btn-success{background:var(--green);color:#0d0f14;} .btn-success:hover{background:#2fbf7a;}
+  .btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border);} .btn-ghost:hover{color:var(--text);border-color:var(--text3);}
+  .btn-danger{background:rgba(247,111,111,.15);color:var(--red);border:1px solid rgba(247,111,111,.3);} .btn-danger:hover{background:rgba(247,111,111,.25);}
+  .btn-sm{padding:6px 11px;font-size:12px;}
+  .btn-xs{padding:4px 8px;font-size:11px;}
+
+  /* KPI GRID */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:border-color .2s;}
+  .kpi-card:hover{border-color:var(--text3);}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+  .kpi-card.blue::before{background:var(--accent);} .kpi-card.green::before{background:var(--green);}
+  .kpi-card.orange::before{background:var(--orange);} .kpi-card.red::before{background:var(--red);}
+  .kpi-card.purple::before{background:var(--purple);}
+  .kpi-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  .kpi-value{font-family:var(--mono);font-size:26px;font-weight:700;color:var(--text);line-height:1;}
+  .kpi-unit{font-size:12px;color:var(--text2);margin-left:4px;}
+  .kpi-delta{font-size:11px;margin-top:5px;}
+  .kpi-delta.up{color:var(--green);} .kpi-delta.down{color:var(--red);} .kpi-delta.neutral{color:var(--text3);}
+
+  /* CARD */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;}
+  .card-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;}
+  .charts-row{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin-bottom:24px;}
+  .chart-wrap{position:relative;height:200px;}
+
+  /* TABLE */
+  .sprints-table{width:100%;border-collapse:collapse;}
+  .sprints-table th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;padding:8px 12px;text-align:left;border-bottom:1px solid var(--border);}
+  .sprints-table td{padding:10px 12px;font-size:13px;color:var(--text2);border-bottom:1px solid rgba(42,47,69,.5);vertical-align:middle;}
+  .sprints-table tr:last-child td{border-bottom:none;}
+  .sprints-table tr:hover td{background:var(--surface2);color:var(--text);cursor:pointer;}
+  .sprint-name{color:var(--text);font-weight:600;}
+
+  /* BADGE */
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+  .badge-green{background:rgba(62,207,142,.15);color:var(--green);}
+  .badge-blue{background:rgba(79,142,247,.15);color:var(--accent);}
+  .badge-orange{background:rgba(247,156,79,.15);color:var(--orange);}
+  .badge-red{background:rgba(247,111,111,.15);color:var(--red);}
+  .badge-purple{background:rgba(167,139,250,.15);color:var(--purple);}
+
+  /* PROGRESS */
+  .progress-bar{height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;min-width:70px;}
+  .progress-fill{height:100%;border-radius:3px;transition:width .4s;}
+
+  /* MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:1000;justify-content:center;align-items:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:580px;max-width:96vw;max-height:92vh;overflow-y:auto;animation:modalIn .2s ease;}
+  .modal-lg{width:720px;}
+  @keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+  .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
+  .modal-title{font-size:16px;font-weight:700;}
+  .modal-close{background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;} .modal-close:hover{color:var(--text);}
+  .form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .form-group{margin-bottom:14px;}
+  .form-group label{display:block;font-size:11px;font-weight:700;color:var(--text3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em;}
+  .form-group input,.form-group select,.form-group textarea{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;transition:border-color .15s;outline:none;}
+  .form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+  .form-group textarea{resize:vertical;min-height:72px;}
+  .form-group select option{background:var(--surface2);}
+  /* DATE INPUTS — lisibles et cliquables */
+  input[type="date"]{background:#1e2438;border:1px solid #4f8ef7;color:#e8eaf0;cursor:pointer;position:relative;}
+  input[type="date"]:hover{border-color:#7cb4ff;background:#242840;}
+  input[type="date"]:focus{border-color:#7cb4ff;box-shadow:0 0 0 2px rgba(79,142,247,.25);}
+  input[type="date"]::-webkit-calendar-picker-indicator{filter:invert(1) brightness(1.4);cursor:pointer;padding:2px;border-radius:3px;opacity:.9;}
+  input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1;background:rgba(79,142,247,.2);}
+  input[type="date"]::-webkit-datetime-edit{color:#e8eaf0;}
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper{color:#e8eaf0;}
+  input[type="date"]::-webkit-datetime-edit-text{color:#9099b5;}
+  .date-input-wrap{position:relative;display:block;}
+  .date-input-wrap input[type="date"]{padding-right:36px;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+
+  /* TABS */
+  .tabs{display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;margin-bottom:20px;width:fit-content;}
+  .tab{padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;color:var(--text2);transition:all .15s;}
+  .tab.active{background:var(--surface3);color:var(--text);}
+  .tab:hover:not(.active){color:var(--text);}
+
+  /* CALCULATEUR */
+  .calc-layout{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .risk-selector{display:flex;flex-direction:column;gap:8px;margin:12px 0;}
+  .risk-btn{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);cursor:pointer;transition:all .15s;font-family:var(--sans);font-size:13px;color:var(--text2);text-align:left;}
+  .risk-btn:hover{border-color:var(--text3);color:var(--text);}
+  .risk-btn.selected-low{border-color:var(--green);background:rgba(62,207,142,.1);color:var(--green);}
+  .risk-btn.selected-moderate{border-color:var(--orange);background:rgba(247,156,79,.1);color:var(--orange);}
+  .risk-btn.selected-high{border-color:var(--red);background:rgba(247,111,111,.1);color:var(--red);}
+  .risk-icon{font-size:18px;}
+  .risk-info .risk-name{font-weight:700;font-size:13px;}
+  .risk-info .risk-desc{font-size:11px;opacity:.7;margin-top:1px;}
+  .risk-factor{margin-left:auto;font-family:var(--mono);font-weight:700;}
+
+  /* CAPACITY RESULT */
+  .cap-result-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px;}
+  .cap-box{border-radius:var(--radius-sm);padding:16px;text-align:center;border:1px solid;}
+  .cap-box.dev{background:rgba(79,142,247,.08);border-color:rgba(79,142,247,.3);}
+  .cap-box.run{background:rgba(247,156,79,.08);border-color:rgba(247,156,79,.3);}
+  .cap-box .cb-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+  .cap-box.dev .cb-label{color:var(--accent);}
+  .cap-box.run .cb-label{color:var(--orange);}
+  .cap-box .cb-value{font-family:var(--mono);font-size:30px;font-weight:700;line-height:1;}
+  .cap-box.dev .cb-value{color:var(--accent);}
+  .cap-box.run .cb-value{color:var(--orange);}
+  .cap-box .cb-unit{font-size:11px;color:var(--text3);margin-top:4px;}
+
+  /* MEMBERS TABLE */
+  .members-table{width:100%;border-collapse:collapse;}
+  .members-table th{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;text-align:left;border-bottom:1px solid var(--border);}
+  .members-table td{padding:8px 10px;font-size:13px;color:var(--text2);border-bottom:1px solid rgba(42,47,69,.4);vertical-align:middle;}
+  .members-table tr:last-child td{border-bottom:none;}
+  .member-name-cell{color:var(--text);font-weight:600;}
+  .run-indicator{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--orange);background:rgba(247,156,79,.12);border:1px solid rgba(247,156,79,.3);padding:2px 8px;border-radius:20px;}
+
+  /* CALENDAR */
+  .cal-wrap{margin-top:10px;}
+  .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .cal-nav{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;padding:2px 6px;border-radius:4px;} .cal-nav:hover{color:var(--text);background:var(--surface2);}
+  .cal-month-label{font-size:13px;font-weight:700;color:var(--text);}
+  .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+  .cal-day-label{font-size:10px;font-weight:700;color:var(--text3);text-align:center;padding:4px 0;text-transform:uppercase;}
+  .cal-day{font-size:12px;text-align:center;padding:5px 2px;border-radius:5px;cursor:pointer;color:var(--text2);transition:all .12s;border:1px solid transparent;user-select:none;}
+  .cal-day:hover:not(.cal-other):not(.cal-weekend):not(.cal-holiday){background:var(--surface3);color:var(--text);}
+  .cal-day.cal-other{color:var(--text3);opacity:.35;pointer-events:none;}
+  .cal-day.cal-weekend{color:var(--text3);background:rgba(42,47,69,.3);cursor:default;}
+  .cal-day.cal-holiday{color:var(--yellow);background:rgba(247,212,79,.08);cursor:default;font-weight:700;}
+  .cal-day.cal-absent{background:rgba(247,111,111,.2);border-color:rgba(247,111,111,.5);color:var(--red);font-weight:700;}
+  .cal-day.cal-out-sprint{opacity:.25;pointer-events:none;}
+  .cal-day.cal-today{outline:1px solid var(--accent);}
+  .cal-legend{display:flex;gap:14px;margin-top:8px;font-size:11px;color:var(--text3);flex-wrap:wrap;}
+  .cal-legend span{display:flex;align-items:center;gap:5px;}
+  .cal-legend .dot{width:10px;height:10px;border-radius:3px;}
+
+  /* MEMBER ABSENCE SECTION */
+  .member-abs-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin-bottom:10px;}
+  .member-abs-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+  .member-abs-name{font-weight:700;color:var(--text);font-size:14px;}
+  .member-abs-days{font-family:var(--mono);font-size:12px;color:var(--text3);}
+
+  /* DETAIL */
+  .detail-header{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+  .detail-back{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 12px;color:var(--text2);cursor:pointer;font-size:13px;display:flex;align-items:center;gap:6px;transition:all .15s;font-family:var(--sans);}
+  .detail-back:hover{color:var(--text);}
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+  .stat-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;}
+  .stat-item .s-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+  .stat-item .s-value{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--text);margin-top:4px;}
+  .notes-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px;}
+  .note-item{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px;position:relative;}
+  .note-date{font-size:10px;color:var(--text3);margin-bottom:5px;}
+  .note-text{font-size:13px;color:var(--text2);line-height:1.5;}
+  .note-delete{position:absolute;top:10px;right:10px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:13px;} .note-delete:hover{color:var(--red);}
+  .note-input-row{display:flex;gap:10px;align-items:flex-start;}
+  .note-input-row textarea{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:9px 12px;resize:none;min-height:64px;outline:none;transition:border-color .15s;}
+  .note-input-row textarea:focus{border-color:var(--accent);}
+
+  /* MISC */
+  .empty-state{text-align:center;padding:52px 20px;color:var(--text3);}
+  .empty-state .empty-icon{font-size:38px;margin-bottom:10px;}
+  .empty-state p{font-size:13px;}
+  .dot-grid{position:fixed;inset:0;pointer-events:none;opacity:.12;background-image:radial-gradient(circle,#2a2f45 1px,transparent 1px);background-size:28px 28px;z-index:0;}
+  .main,.sidebar{position:relative;z-index:1;}
+  .divider{height:1px;background:var(--border);margin:18px 0;}
+  .info-box{background:rgba(79,142,247,.07);border:1px solid rgba(79,142,247,.2);border-radius:var(--radius-sm);padding:12px 14px;font-size:12px;color:var(--text2);line-height:1.5;}
+  .formula-box{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;font-family:var(--mono);font-size:12px;color:var(--text3);margin:10px 0;}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+
+  @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}.calc-layout{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="dot-grid"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="logo">
+    <div class="logo-title">SCRUMBOARD</div>
+    <div class="logo-sub">v3.0 — Agile Dashboard</div>
+  </div>
+  <div class="nav-section">Suivi</div>
+  <div class="nav-item active" onclick="goTo('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
+  <div class="nav-item" onclick="goTo('sprints')"><span class="nav-icon">🏃</span><span>Sprints</span></div>
+  <div class="nav-section">Planification</div>
+  <div class="nav-item" onclick="goTo('calculateur')"><span class="nav-icon">🧮</span><span>Capacité équipe</span></div>
+  <div class="nav-item" onclick="goTo('absences')"><span class="nav-icon">📅</span><span>Absences</span></div>
+  <div class="nav-item" onclick="goTo('membres')"><span class="nav-icon">👥</span><span>Membres</span></div>
+  <div class="sidebar-footer">
+    <div class="team-badge" onclick="openTeamModal()">
+      <div class="label">Équipe</div>
+      <div class="name" id="team-name-display">Mon équipe</div>
+    </div>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- ══ DASHBOARD ══ -->
+<section id="page-dashboard" class="page active">
+  <div class="page-header">
+    <div><div class="page-title">Tableau de bord</div><div class="page-sub">Vue d'ensemble de l'activité</div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="openTeamModal()">⚙ Équipe</button>
+      <button class="btn btn-primary" onclick="openAddSprint()">+ Nouveau sprint</button>
+    </div>
+  </div>
+  <div class="kpi-grid">
+    <div class="kpi-card blue"><div class="kpi-label">Vélocité moyenne</div><div><span class="kpi-value" id="kpi-velocity">—</span><span class="kpi-unit">pts</span></div><div class="kpi-delta neutral" id="kpi-velocity-delta">Aucun sprint terminé</div></div>
+    <div class="kpi-card green"><div class="kpi-label">Taux de complétion</div><div><span class="kpi-value" id="kpi-completion">—</span><span class="kpi-unit">%</span></div><div class="kpi-delta neutral">Points réalisés / engagés</div></div>
+    <div class="kpi-card orange"><div class="kpi-label">Anomalies totales</div><div><span class="kpi-value" id="kpi-bugs">0</span><span class="kpi-unit">bugs</span></div><div class="kpi-delta neutral">Tous sprints confondus</div></div>
+    <div class="kpi-card red"><div class="kpi-label">Sprints actifs</div><div><span class="kpi-value" id="kpi-active">0</span><span class="kpi-unit">en cours</span></div><div class="kpi-delta neutral" id="kpi-total-delta">— sprints au total</div></div>
+  </div>
+  <div class="charts-row">
+    <div class="card"><div class="card-title">Points engagés vs réalisés <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:11px;">par sprint</span></div><div class="chart-wrap"><canvas id="chart-sprints"></canvas></div></div>
+    <div class="card"><div class="card-title">Vélocité <span style="color:var(--text3);font-weight:400;text-transform:none;font-size:11px;">évolution</span></div><div class="chart-wrap"><canvas id="chart-velocity"></canvas></div></div>
+  </div>
+  <div class="card"><div class="card-title">Sprints récents</div><div id="recent-sprints-table"><div class="empty-state"><div class="empty-icon">🏁</div><p>Aucun sprint.<br>Cliquez sur « Nouveau sprint ».</p></div></div></div>
+</section>
+
+<!-- ══ SPRINTS ══ -->
+<section id="page-sprints" class="page">
+  <div class="page-header">
+    <div><div class="page-title">Gestion des sprints</div><div class="page-sub">Créez et gérez vos sprints</div></div>
+    <button class="btn btn-primary" onclick="openAddSprint()">+ Nouveau sprint</button>
+  </div>
+  <div class="card"><div id="all-sprints-table"><div class="empty-state"><div class="empty-icon">🏃</div><p>Aucun sprint créé.</p></div></div></div>
+</section>
+
+<!-- ══ DETAIL SPRINT ══ -->
+<section id="page-detail" class="page">
+  <div class="detail-header">
+    <button class="detail-back" onclick="goTo('sprints')">← Retour</button>
+    <div><div class="page-title" id="detail-title">Sprint</div><div class="page-sub" id="detail-dates"></div></div>
+    <div style="margin-left:auto;display:flex;gap:8px;">
+      <button class="btn btn-ghost btn-sm" onclick="editCurrentSprint()">✏ Modifier</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCurrentSprint()">🗑 Supprimer</button>
+    </div>
+  </div>
+  <div class="stats-row">
+    <div class="stat-item"><div class="s-label">Points engagés</div><div class="s-value" id="detail-committed">—</div></div>
+    <div class="stat-item"><div class="s-label">Points réalisés</div><div class="s-value" id="detail-done">—</div></div>
+    <div class="stat-item"><div class="s-label">Capacité DEV</div><div class="s-value" id="detail-cap-dev">—</div></div>
+    <div class="stat-item"><div class="s-label">Anomalies</div><div class="s-value" id="detail-bugs">—</div></div>
+  </div>
+  <div class="charts-row" style="margin-bottom:22px;">
+    <div class="card"><div class="card-title">Points engagés vs réalisés</div><div class="chart-wrap"><canvas id="chart-detail-bar"></canvas></div></div>
+    <div class="card"><div class="card-title">Statut du sprint</div>
+      <div style="display:flex;flex-direction:column;justify-content:center;height:200px;gap:14px;padding:4px 0;">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text3);margin-bottom:6px;"><span>Taux de complétion</span><span id="detail-pct">—%</span></div>
+          <div class="progress-bar" style="height:9px;"><div class="progress-fill" id="detail-progress" style="background:var(--accent);width:0%"></div></div>
+        </div>
+        <div style="font-size:13px;color:var(--text2);">Statut : <span id="detail-status-badge"></span></div>
+        <div style="font-size:13px;color:var(--text2);">Responsable RUN : <span id="detail-run" style="color:var(--orange);">—</span></div>
+        <div style="font-size:13px;color:var(--text2);">Objectif : <em id="detail-goal" style="color:var(--text3)">—</em></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Notes du sprint</div>
+    <div class="notes-list" id="notes-list"></div>
+    <div class="note-input-row">
+      <textarea id="note-input" placeholder="Ajouter une note, un blocage, une rétrospective…"></textarea>
+      <button class="btn btn-primary" onclick="addNote()">Ajouter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CALCULATEUR CAPACITÉ ══ -->
+<section id="page-calculateur" class="page">
+  <div class="page-header">
+    <div><div class="page-title">Calculateur de capacité</div><div class="page-sub">Calcul automatique basé sur les membres, les absences et le risque</div></div>
+  </div>
+
+  <div class="calc-layout">
+    <!-- Colonne gauche -->
+    <div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Paramètres du sprint</div>
+        <div class="form-row">
+          <div class="form-group"><label>Date de début</label><input type="date" id="calc-start" onchange="calcCapacity()"></div>
+          <div class="form-group"><label>Date de fin</label><input type="date" id="calc-end" onchange="calcCapacity()"></div>
+        </div>
+        <div class="form-group">
+          <label>Responsable RUN ce sprint</label>
+          <select id="calc-run-member" onchange="calcCapacity()">
+            <option value="">— Aucun —</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Niveau de risque</label>
+          <div class="risk-selector">
+            <button class="risk-btn selected-low" id="risk-low" onclick="selectRisk('low')"><span class="risk-icon">🟢</span><div class="risk-info"><div class="risk-name">Faible</div><div class="risk-desc">Sprint bien défini, équipe stable</div></div><span class="risk-factor">×0.95</span></button>
+            <button class="risk-btn" id="risk-moderate" onclick="selectRisk('moderate')"><span class="risk-icon">🟡</span><div class="risk-info"><div class="risk-name">Modéré</div><div class="risk-desc">Quelques incertitudes techniques</div></div><span class="risk-factor">×0.80</span></button>
+            <button class="risk-btn" id="risk-high" onclick="selectRisk('high')"><span class="risk-icon">🔴</span><div class="risk-info"><div class="risk-name">Élevé</div><div class="risk-desc">Fort niveau d'inconnu, dépendances</div></div><span class="risk-factor">×0.65</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lien vers page absences -->
+      <div class="card">
+        <div class="card-title">Absences de l'équipe</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Gérez les absences de chaque membre depuis la page dédiée. Le calcul de capacité se met à jour automatiquement.</div>
+        <div id="calc-absence-summary" style="margin-bottom:14px;font-size:13px;color:var(--text3);">—</div>
+        <button class="btn btn-ghost" onclick="goTo('absences')" style="width:100%;justify-content:center;">📅 Gérer les absences →</button>
+      </div>
+    </div>
+
+    <!-- Colonne droite -->
+    <div>
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Résultat de capacité</div>
+        <div class="cap-result-grid">
+          <div class="cap-box dev"><div class="cb-label">⚙ Capacité DEV</div><div class="cb-value" id="cap-dev-val">—</div><div class="cb-unit">points disponibles</div></div>
+          <div class="cap-box run"><div class="cb-label">🔥 Capacité RUN</div><div class="cb-value" id="cap-run-val">—</div><div class="cb-unit">points incidents</div></div>
+        </div>
+        <div class="formula-box" id="cap-formula" style="margin-top:14px;">Définissez les dates et les membres pour calculer.</div>
+      </div>
+
+      <div class="card" style="margin-bottom:14px;">
+        <div class="card-title">Détail par membre</div>
+        <div id="cap-member-detail" style="font-size:13px;color:var(--text3);">—</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Jours fériés français détectés</div>
+        <div id="cap-holidays-list" style="font-size:12px;color:var(--text3);">Définissez les dates du sprint pour voir les jours fériés.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ ABSENCES ══ -->
+<section id="page-absences" class="page">
+  <div class="page-header">
+    <div><div class="page-title">Gestion des absences</div><div class="page-sub">Saisissez les absences de chaque membre pour le sprint en cours</div></div>
+    <button class="btn btn-ghost btn-sm" onclick="goTo('calculateur')">← Retour au calculateur</button>
+  </div>
+
+  <!-- Sélecteur de période -->
+  <div class="card" style="margin-bottom:20px;">
+    <div class="card-title">Période du sprint</div>
+    <div class="form-row" style="max-width:480px;">
+      <div class="form-group">
+        <label>Date de début</label>
+        <div class="date-input-wrap">
+          <input type="date" id="abs-start" onchange="onAbsDatesChange()">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Date de fin</label>
+        <div class="date-input-wrap">
+          <input type="date" id="abs-end" onchange="onAbsDatesChange()">
+        </div>
+      </div>
+    </div>
+    <div id="abs-period-info" style="font-size:12px;color:var(--text3);margin-top:-6px;">Définissez les dates pour afficher les calendriers.</div>
+  </div>
+
+  <!-- Calendriers par membre -->
+  <div id="absence-page-list">
+    <div class="empty-state"><div class="empty-icon">📅</div><p>Ajoutez des membres dans « Membres » pour gérer les absences.</p></div>
+  </div>
+</section>
+
+<!-- ══ MEMBRES ══ -->
+<section id="page-membres" class="page">
+  <div class="page-header">
+    <div><div class="page-title">Membres de l'équipe</div><div class="page-sub">Gérez les profils et les capacités individuelles</div></div>
+    <button class="btn btn-primary" onclick="openAddMember()">+ Ajouter un membre</button>
+  </div>
+  <div class="card">
+    <div id="members-table-container">
+      <div class="empty-state"><div class="empty-icon">👥</div><p>Aucun membre. Ajoutez votre équipe !</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- MODAL SPRINT -->
+<div class="modal-overlay" id="modal-sprint">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="modal-sprint-title">Nouveau sprint</div><button class="modal-close" onclick="closeModal('modal-sprint')">×</button></div>
+    <div class="form-row">
+      <div class="form-group"><label>Nom du sprint</label><input type="text" id="sprint-name" placeholder="ex: Sprint 12"></div>
+      <div class="form-group"><label>Statut</label><select id="sprint-status"><option value="planned">Planifié</option><option value="active">En cours</option><option value="done">Terminé</option></select></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Date de début</label><input type="date" id="sprint-start"></div>
+      <div class="form-group"><label>Date de fin</label><input type="date" id="sprint-end"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Points engagés</label><input type="number" id="sprint-committed" placeholder="ex: 40" min="0"></div>
+      <div class="form-group"><label>Points réalisés</label><input type="number" id="sprint-done" placeholder="ex: 36" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Anomalies remontées</label><input type="number" id="sprint-bugs" placeholder="ex: 3" min="0"></div>
+      <div class="form-group"><label>Responsable RUN</label><select id="sprint-run-member"><option value="">— Aucun —</option></select></div>
+    </div>
+    <div class="form-group"><label>Objectif du sprint</label><textarea id="sprint-goal" placeholder="Objectif principal…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-sprint')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveSprint()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MEMBRE -->
+<div class="modal-overlay" id="modal-member">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header"><div class="modal-title" id="modal-member-title">Nouveau membre</div><button class="modal-close" onclick="closeModal('modal-member')">×</button></div>
+    <div class="form-group"><label>Prénom / Nom</label><input type="text" id="member-name" placeholder="ex: Alice Martin"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Rôle</label><select id="member-role"><option value="senior">Senior</option><option value="medior">Médior</option><option value="junior">Junior</option><option value="lead">Tech Lead</option><option value="autre">Autre</option></select></div>
+      <div class="form-group">
+        <label>Contribution (%)</label>
+        <input type="number" id="member-contrib" placeholder="ex: 100" min="10" max="100" value="100">
+      </div>
+    </div>
+    <div class="info-box">Le pourcentage de contribution reflète la capacité relative du membre. Ex : un senior à 100% et un junior à 60% signifie que le junior réalise environ 60% des points du senior sur la même période de sprint.</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-member')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveMember()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ÉQUIPE -->
+<div class="modal-overlay" id="modal-team">
+  <div class="modal" style="width:360px;">
+    <div class="modal-header"><div class="modal-title">Paramètres de l'équipe</div><button class="modal-close" onclick="closeModal('modal-team')">×</button></div>
+    <div class="form-group"><label>Nom de l'équipe</label><input type="text" id="team-name-input" placeholder="ex: Team Phoenix"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-team')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveTeam()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+let state = {
+  sprints: [],
+  members: [],
+  team: 'Mon équipe',
+  currentSprint: null,
+  editingId: null,
+  editingMemberId: null,
+  selectedRisk: 'low',
+  // absences: { memberId: { 'YYYY-MM-DD': true } }
+  absences: {},
+  calcDates: { start: '', end: '' }
+};
+
+function loadState() {
+  try { const s = localStorage.getItem('scrumboard_v3'); if (s) Object.assign(state, JSON.parse(s)); } catch(e) {}
+}
+function saveState() { localStorage.setItem('scrumboard_v3', JSON.stringify(state)); }
+
+/* ════════════════════════════════════════
+   JOURS FÉRIÉS FRANCE
+════════════════════════════════════════ */
+function getFrHolidays(year) {
+  const y = year;
+  // Pâques (algorithme de Meeus/Jones/Butcher)
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451),month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  const easter = new Date(y, month-1, day);
+  const add = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+  const fmt = d => d.toISOString().slice(0,10);
+  return {
+    [fmt(new Date(y,0,1))]: 'Jour de l\'An',
+    [fmt(add(easter,1))]: 'Lundi de Pâques',
+    [fmt(new Date(y,4,1))]: 'Fête du Travail',
+    [fmt(new Date(y,4,8))]: 'Victoire 1945',
+    [fmt(add(easter,39))]: 'Ascension',
+    [fmt(add(easter,50))]: 'Lundi de Pentecôte',
+    [fmt(new Date(y,6,14))]: 'Fête Nationale',
+    [fmt(new Date(y,7,15))]: 'Assomption',
+    [fmt(new Date(y,10,1))]: 'Toussaint',
+    [fmt(new Date(y,10,11))]: 'Armistice',
+    [fmt(new Date(y,11,25))]: 'Noël',
+  };
+}
+
+function getHolidaysInRange(start, end) {
+  const years = new Set();
+  const d = new Date(start);
+  while (d <= new Date(end)) { years.add(d.getFullYear()); d.setMonth(d.getMonth()+1); }
+  let all = {};
+  years.forEach(y => Object.assign(all, getFrHolidays(y)));
+  const result = {};
+  Object.entries(all).forEach(([date, name]) => { if (date >= start && date <= end) result[date] = name; });
+  return result;
+}
+
+function isWeekend(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.getDay() === 0 || d.getDay() === 6;
+}
+
+function getWorkingDays(start, end, holidays) {
+  const days = [];
+  const d = new Date(start + 'T12:00:00');
+  const e = new Date(end + 'T12:00:00');
+  while (d <= e) {
+    const str = d.toISOString().slice(0,10);
+    if (!isWeekend(str) && !holidays[str]) days.push(str);
+    d.setDate(d.getDate()+1);
+  }
+  return days;
+}
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`.nav-item[onclick="goTo('${page}')"]`)?.classList.add('active');
+  if (page === 'dashboard') renderDashboard();
+  if (page === 'sprints') renderSprintsPage();
+  if (page === 'calculateur') { populateCalcRunSelect(); updateCalcAbsenceSummary(); calcCapacity(); }
+  if (page === 'absences') renderAbsencePage();
+  if (page === 'membres') renderMembersPage();
+}
+
+/* ════════════════════════════════════════
+   TEAM MODAL
+════════════════════════════════════════ */
+function openTeamModal() {
+  document.getElementById('team-name-input').value = state.team;
+  document.getElementById('modal-team').classList.add('open');
+}
+function saveTeam() {
+  state.team = document.getElementById('team-name-input').value.trim() || 'Mon équipe';
+  document.getElementById('team-name-display').textContent = state.team;
+  saveState(); closeModal('modal-team');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+/* ════════════════════════════════════════
+   MEMBRES
+════════════════════════════════════════ */
+function openAddMember() {
+  state.editingMemberId = null;
+  document.getElementById('modal-member-title').textContent = 'Nouveau membre';
+  document.getElementById('member-name').value = '';
+  document.getElementById('member-role').value = 'medior';
+  document.getElementById('member-contrib').value = '100';
+  document.getElementById('modal-member').classList.add('open');
+}
+
+function editMember(id) {
+  const m = state.members.find(x => x.id === id);
+  if (!m) return;
+  state.editingMemberId = id;
+  document.getElementById('modal-member-title').textContent = 'Modifier le membre';
+  document.getElementById('member-name').value = m.name;
+  document.getElementById('member-role').value = m.role;
+  document.getElementById('member-contrib').value = m.contrib;
+  document.getElementById('modal-member').classList.add('open');
+}
+
+function saveMember() {
+  const name = document.getElementById('member-name').value.trim();
+  if (!name) { alert('Nom requis'); return; }
+  const member = {
+    id: state.editingMemberId || Date.now().toString(),
+    name,
+    role: document.getElementById('member-role').value,
+    contrib: parseFloat(document.getElementById('member-contrib').value) || 100,
+  };
+  if (state.editingMemberId) {
+    const idx = state.members.findIndex(x => x.id === state.editingMemberId);
+    state.members[idx] = member;
+  } else {
+    state.members.push(member);
+    state.absences[member.id] = state.absences[member.id] || {};
+  }
+  saveState();
+  closeModal('modal-member');
+  renderMembersPage();
+  populateRunSelects();
+}
+
+function deleteMember(id) {
+  if (!confirm('Supprimer ce membre ?')) return;
+  state.members = state.members.filter(x => x.id !== id);
+  delete state.absences[id];
+  saveState();
+  renderMembersPage();
+  populateRunSelects();
+}
+
+function renderMembersPage() {
+  const el = document.getElementById('members-table-container');
+  if (!state.members.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">👥</div><p>Aucun membre. Ajoutez votre équipe !</p></div>';
+    return;
+  }
+  const roleLabel = { senior:'Senior', medior:'Médior', junior:'Junior', lead:'Tech Lead', autre:'Autre' };
+  el.innerHTML = `<table class="members-table">
+    <thead><tr><th>Nom</th><th>Rôle</th><th>Contribution</th><th>Actions</th></tr></thead>
+    <tbody>
+    ${state.members.map(m => `
+      <tr>
+        <td class="member-name-cell">${m.name}</td>
+        <td><span class="badge badge-blue">${roleLabel[m.role]||m.role}</span></td>
+        <td><span style="font-family:var(--mono);color:var(--text)">${m.contrib}%</span></td>
+        <td><button class="btn btn-ghost btn-xs" onclick="editMember('${m.id}')">✏</button> <button class="btn btn-danger btn-xs" onclick="deleteMember('${m.id}')">🗑</button></td>
+      </tr>
+    `).join('')}
+    </tbody>
+  </table>`;
+}
+
+function populateRunSelects() {
+  ['sprint-run-member','calc-run-member'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">— Aucun —</option>' + state.members.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+    sel.value = cur;
+  });
+}
+
+function populateCalcRunSelect() { populateRunSelects(); }
+
+/* ════════════════════════════════════════
+   SPRINT MODAL
+════════════════════════════════════════ */
+function openAddSprint() {
+  state.editingId = null;
+  document.getElementById('modal-sprint-title').textContent = 'Nouveau sprint';
+  ['sprint-name','sprint-start','sprint-end','sprint-committed','sprint-done','sprint-bugs','sprint-goal'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('sprint-status').value = 'active';
+  populateRunSelects();
+  document.getElementById('sprint-run-member').value = '';
+  document.getElementById('modal-sprint').classList.add('open');
+}
+
+function editCurrentSprint() {
+  const s = state.sprints.find(x => x.id === state.currentSprint);
+  if (!s) return;
+  state.editingId = s.id;
+  document.getElementById('modal-sprint-title').textContent = 'Modifier le sprint';
+  document.getElementById('sprint-name').value = s.name;
+  document.getElementById('sprint-status').value = s.status;
+  document.getElementById('sprint-start').value = s.startDate || '';
+  document.getElementById('sprint-end').value = s.endDate || '';
+  document.getElementById('sprint-committed').value = s.committed || '';
+  document.getElementById('sprint-done').value = s.done || '';
+  document.getElementById('sprint-bugs').value = s.bugs || '';
+  document.getElementById('sprint-goal').value = s.goal || '';
+  populateRunSelects();
+  document.getElementById('sprint-run-member').value = s.runMemberId || '';
+  document.getElementById('modal-sprint').classList.add('open');
+}
+
+function saveSprint() {
+  const name = document.getElementById('sprint-name').value.trim();
+  if (!name) { alert('Nom requis'); return; }
+  const existing = state.editingId ? state.sprints.find(x => x.id === state.editingId) : null;
+  const sprint = {
+    id: state.editingId || Date.now().toString(),
+    name,
+    status: document.getElementById('sprint-status').value,
+    startDate: document.getElementById('sprint-start').value,
+    endDate: document.getElementById('sprint-end').value,
+    committed: parseInt(document.getElementById('sprint-committed').value) || 0,
+    done: parseInt(document.getElementById('sprint-done').value) || 0,
+    bugs: parseInt(document.getElementById('sprint-bugs').value) || 0,
+    goal: document.getElementById('sprint-goal').value.trim(),
+    runMemberId: document.getElementById('sprint-run-member').value,
+    notes: existing ? (existing.notes || []) : [],
+    createdAt: existing ? existing.createdAt : Date.now()
+  };
+  if (state.editingId) { const idx = state.sprints.findIndex(x => x.id === state.editingId); state.sprints[idx] = sprint; }
+  else state.sprints.push(sprint);
+  saveState(); closeModal('modal-sprint');
+  renderDashboard(); renderSprintsPage();
+  if (state.currentSprint === sprint.id) renderDetail(sprint.id);
+}
+
+function deleteCurrentSprint() {
+  if (!confirm('Supprimer ce sprint ?')) return;
+  state.sprints = state.sprints.filter(x => x.id !== state.currentSprint);
+  saveState(); goTo('sprints');
+}
+
+/* ════════════════════════════════════════
+   NOTES
+════════════════════════════════════════ */
+function addNote() {
+  const text = document.getElementById('note-input').value.trim();
+  if (!text) return;
+  const sprint = state.sprints.find(x => x.id === state.currentSprint);
+  if (!sprint) return;
+  sprint.notes = sprint.notes || [];
+  sprint.notes.push({ id: Date.now().toString(), text, date: new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) });
+  document.getElementById('note-input').value = '';
+  saveState(); renderNotes(sprint);
+}
+
+function deleteNote(noteId) {
+  const sprint = state.sprints.find(x => x.id === state.currentSprint);
+  if (!sprint) return;
+  sprint.notes = sprint.notes.filter(n => n.id !== noteId);
+  saveState(); renderNotes(sprint);
+}
+
+function renderNotes(sprint) {
+  const el = document.getElementById('notes-list');
+  if (!sprint.notes || !sprint.notes.length) { el.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:6px 0;">Aucune note pour l\'instant.</div>'; return; }
+  el.innerHTML = sprint.notes.map(n => `<div class="note-item"><div class="note-date">${n.date}</div><div class="note-text">${n.text.replace(/\n/g,'<br>')}</div><button class="note-delete" onclick="deleteNote('${n.id}')">✕</button></div>`).join('');
+}
+
+/* ════════════════════════════════════════
+   DETAIL SPRINT
+════════════════════════════════════════ */
+function renderDetail(id) {
+  state.currentSprint = id;
+  const s = state.sprints.find(x => x.id === id);
+  if (!s) return;
+  document.getElementById('detail-title').textContent = s.name;
+  document.getElementById('detail-dates').textContent = s.startDate && s.endDate ? fmtDate(s.startDate)+' → '+fmtDate(s.endDate) : 'Dates non définies';
+  document.getElementById('detail-committed').textContent = s.committed+' pts';
+  document.getElementById('detail-done').textContent = s.done+' pts';
+  document.getElementById('detail-bugs').textContent = s.bugs;
+  const pct = s.committed > 0 ? Math.round(s.done/s.committed*100) : 0;
+  document.getElementById('detail-pct').textContent = pct+'%';
+  document.getElementById('detail-progress').style.width = Math.min(pct,100)+'%';
+  document.getElementById('detail-progress').style.background = pct>=90?'var(--green)':pct>=70?'var(--orange)':'var(--red)';
+  document.getElementById('detail-goal').textContent = s.goal || 'Non défini';
+  document.getElementById('detail-status-badge').innerHTML = statusBadge(s.status);
+  const runM = state.members.find(x => x.id === s.runMemberId);
+  document.getElementById('detail-run').textContent = runM ? runM.name : '—';
+
+  // Capacité DEV calculée
+  if (s.startDate && s.endDate && state.members.length) {
+    const { capDev } = computeCapacity(s.startDate, s.endDate, s.runMemberId, state.selectedRisk);
+    document.getElementById('detail-cap-dev').textContent = capDev.toFixed(1)+' pts';
+  } else {
+    document.getElementById('detail-cap-dev').textContent = '—';
+  }
+
+  renderNotes(s);
+
+  const ctx = document.getElementById('chart-detail-bar').getContext('2d');
+  if (window._detailChart) window._detailChart.destroy();
+  window._detailChart = new Chart(ctx, {
+    type:'bar', data:{ labels:['Points engagés','Points réalisés'], datasets:[{ data:[s.committed,s.done], backgroundColor:['rgba(79,142,247,.6)','rgba(62,207,142,.6)'], borderColor:['#4f8ef7','#3ecf8e'], borderWidth:2, borderRadius:6 }] },
+    options: chartOptions(false)
+  });
+
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-detail').classList.add('active');
+  document.querySelector(`.nav-item[onclick="goTo('sprints')"]`)?.classList.add('active');
+}
+
+/* ════════════════════════════════════════
+   CALCUL CAPACITÉ (CŒUR)
+════════════════════════════════════════ */
+const RISK_FACTORS = { low:0.95, moderate:0.80, high:0.65 };
+
+function computeCapacity(start, end, runMemberId, risk) {
+  if (!start || !end || !state.members.length) return { capDev:0, capRun:0, details:[] };
+
+  const holidays = getHolidaysInRange(start, end);
+  const factor = RISK_FACTORS[risk || state.selectedRisk];
+  const details = [];
+  let capDev = 0, capRun = 0;
+
+  state.members.forEach(m => {
+    const workDays = getWorkingDays(start, end, holidays);
+    const absKeys = state.absences[m.id] || {};
+    const presentDays = workDays.filter(d => !absKeys[d]);
+    const contribFactor = m.contrib / 100;
+    const rawCap = presentDays.length * contribFactor;
+
+    if (m.id === runMemberId) {
+      capRun += rawCap;
+      details.push({ name:m.name, contrib:m.contrib, workDays:workDays.length, absent:workDays.length-presentDays.length, present:presentDays.length, cap:rawCap, isRun:true });
+    } else {
+      const adjusted = rawCap * factor;
+      capDev += adjusted;
+      details.push({ name:m.name, contrib:m.contrib, workDays:workDays.length, absent:workDays.length-presentDays.length, present:presentDays.length, cap:rawCap, adjusted, isRun:false });
+    }
+  });
+
+  return { capDev, capRun, details, holidays, factor };
+}
+
+function calcCapacity() {
+  const start = document.getElementById('calc-start').value;
+  const end = document.getElementById('calc-end').value;
+  const runId = document.getElementById('calc-run-member').value;
+
+  if (!start || !end || new Date(start) > new Date(end)) {
+    document.getElementById('cap-dev-val').textContent = '—';
+    document.getElementById('cap-run-val').textContent = '—';
+    document.getElementById('cap-formula').textContent = 'Définissez des dates valides.';
+    return;
+  }
+
+  state.calcDates = { start, end };
+  saveState();
+
+  const { capDev, capRun, details, holidays, factor } = computeCapacity(start, end, runId, state.selectedRisk);
+
+  document.getElementById('cap-dev-val').textContent = capDev.toFixed(1);
+  document.getElementById('cap-run-val').textContent = capRun.toFixed(1);
+
+  const riskLabel = { low:'Faible (×0.95)', moderate:'Modéré (×0.80)', high:'Élevé (×0.65)' }[state.selectedRisk];
+  document.getElementById('cap-formula').textContent = `Σ(contribution% × jours présents) × ${factor} = ${capDev.toFixed(1)} pts DEV  |  Risque : ${riskLabel}`;
+
+  if (details.length) {
+    document.getElementById('cap-member-detail').innerHTML = `
+      <table class="members-table">
+        <thead><tr><th>Membre</th><th>Contrib.</th><th>Jours ouvrés</th><th>Absences</th><th>Présents</th><th>Capacité</th><th>Rôle sprint</th></tr></thead>
+        <tbody>
+          ${details.map(d => `<tr>
+            <td class="member-name-cell">${d.name}</td>
+            <td style="font-family:var(--mono)">${d.contrib}%</td>
+            <td style="font-family:var(--mono)">${d.workDays}j</td>
+            <td style="font-family:var(--mono);color:${d.absent>0?'var(--red)':'var(--text3)'}">${d.absent}j</td>
+            <td style="font-family:var(--mono);color:var(--green)">${d.present}j</td>
+            <td style="font-family:var(--mono);color:var(--text)">${d.isRun ? d.cap.toFixed(1) : d.adjusted.toFixed(1)} pts</td>
+            <td>${d.isRun ? '<span class="run-indicator">🔥 RUN</span>' : '<span class="badge badge-blue">⚙ DEV</span>'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } else {
+    document.getElementById('cap-member-detail').textContent = 'Aucun membre défini.';
+  }
+
+  const hEntries = Object.entries(holidays||{});
+  if (hEntries.length) {
+    document.getElementById('cap-holidays-list').innerHTML = hEntries.map(([d,n]) =>
+      `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(42,47,69,.4);"><span style="color:var(--yellow)">${fmtDate(d)}</span><span>${n}</span></div>`
+    ).join('');
+  } else {
+    document.getElementById('cap-holidays-list').textContent = 'Aucun jour férié sur cette période.';
+  }
+
+  updateCalcAbsenceSummary();
+}
+
+function updateCalcAbsenceSummary() {
+  const el = document.getElementById('calc-absence-summary');
+  if (!el) return;
+  if (!state.members.length) { el.textContent = 'Aucun membre défini.'; return; }
+  const lines = state.members.map(m => {
+    const count = Object.keys(state.absences[m.id]||{}).length;
+    return `<span style="margin-right:14px;color:${count>0?'var(--red)':'var(--green)'}">● ${m.name} : <strong>${count}j</strong></span>`;
+  }).join('');
+  el.innerHTML = lines;
+}
+
+/* ════════════════════════════════════════
+   PAGE ABSENCES DÉDIÉE
+════════════════════════════════════════ */
+const calState = {};
+
+function renderAbsencePage() {
+  // Sync dates from calcDates
+  const startEl = document.getElementById('abs-start');
+  const endEl = document.getElementById('abs-end');
+  if (state.calcDates.start) startEl.value = state.calcDates.start;
+  if (state.calcDates.end) endEl.value = state.calcDates.end;
+  updateAbsPeriodInfo();
+  renderAbsenceList();
+}
+
+function onAbsDatesChange() {
+  const start = document.getElementById('abs-start').value;
+  const end = document.getElementById('abs-end').value;
+  if (start && end) {
+    state.calcDates = { start, end };
+    // Sync back to calculateur inputs
+    const cs = document.getElementById('calc-start');
+    const ce = document.getElementById('calc-end');
+    if (cs) cs.value = start;
+    if (ce) ce.value = end;
+    saveState();
+  }
+  updateAbsPeriodInfo();
+  renderAbsenceList();
+}
+
+function updateAbsPeriodInfo() {
+  const el = document.getElementById('abs-period-info');
+  if (!el) return;
+  const { start, end } = state.calcDates;
+  if (!start || !end) { el.textContent = 'Définissez les dates pour afficher les calendriers.'; return; }
+  const holidays = getHolidaysInRange(start, end);
+  const workDays = getWorkingDays(start, end, holidays);
+  el.innerHTML = `<span style="color:var(--accent)">● ${workDays.length} jours ouvrés</span> &nbsp;|&nbsp; <span style="color:var(--yellow)">● ${Object.keys(holidays).length} jour(s) férié(s)</span> &nbsp;sur la période ${fmtDate(start)} → ${fmtDate(end)}`;
+}
+
+function renderAbsenceList() {
+  const el = document.getElementById('absence-page-list');
+  if (!state.members.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>Ajoutez des membres dans « Membres » pour gérer les absences.</p></div>';
+    return;
+  }
+  if (!state.calcDates.start || !state.calcDates.end) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-icon">📅</div><p>Définissez les dates du sprint ci-dessus<br>pour afficher les calendriers.</p></div>';
+    return;
+  }
+
+  // Grille 2 colonnes pour les calendriers
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    ${state.members.map(m => {
+      if (!calState[m.id]) {
+        const d = new Date(state.calcDates.start + 'T12:00:00');
+        calState[m.id] = { year: d.getFullYear(), month: d.getMonth() };
+      }
+      const absCount = Object.keys(state.absences[m.id]||{}).length;
+      return `<div class="card">
+        <div class="member-abs-header" style="margin-bottom:10px;">
+          <span class="member-abs-name">${m.name} <span style="font-size:11px;font-weight:400;color:var(--text3)">${m.contrib}%</span></span>
+          <span class="member-abs-days" id="abs-count-${m.id}">${absCount} jour${absCount!==1?'s':''} d'absence</span>
+        </div>
+        <div id="cal-${m.id}"></div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  state.members.forEach(m => renderCalendar(m.id));
+}
+
+function renderCalendar(memberId) {
+  const wrap = document.getElementById('cal-'+memberId);
+  if (!wrap) return;
+  if (!calState[memberId]) {
+    const d = state.calcDates.start ? new Date(state.calcDates.start+'T12:00:00') : new Date();
+    calState[memberId] = { year: d.getFullYear(), month: d.getMonth() };
+  }
+  const { year, month } = calState[memberId];
+  const start = state.calcDates.start;
+  const end = state.calcDates.end;
+  const holidays = (start && end) ? getHolidaysInRange(start, end) : {};
+  const absences = state.absences[memberId] || {};
+
+  const today = new Date().toISOString().slice(0,10);
+  const DAYS_FR = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+  const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+  const firstDay = new Date(year, month, 1);
+  const lastDay = new Date(year, month+1, 0);
+  let startWd = firstDay.getDay();
+  startWd = startWd === 0 ? 6 : startWd - 1;
+
+  let cells = '';
+  DAYS_FR.forEach(d => { cells += `<div class="cal-day-label">${d}</div>`; });
+  for (let i=0;i<startWd;i++) cells += `<div class="cal-day cal-other"></div>`;
+
+  for (let d=1; d<=lastDay.getDate(); d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const wd = new Date(year,month,d).getDay();
+    const isWe = wd===0||wd===6;
+    const isHoliday = !!holidays[dateStr];
+    const isAbsent = !!absences[dateStr];
+    const isToday = dateStr === today;
+    const outSprint = (start && end) ? (dateStr < start || dateStr > end) : false;
+    let cls = 'cal-day';
+    if (outSprint) cls += ' cal-out-sprint';
+    else if (isWe) cls += ' cal-weekend';
+    else if (isHoliday) cls += ' cal-holiday';
+    else if (isAbsent) cls += ' cal-absent';
+    if (isToday) cls += ' cal-today';
+    const title = isHoliday ? holidays[dateStr] : (isAbsent ? 'Absent' : '');
+    cells += `<div class="${cls}" title="${title}" onclick="toggleAbsence('${memberId}','${dateStr}')">${d}</div>`;
+  }
+
+  wrap.innerHTML = `
+    <div class="cal-wrap">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="calPrev('${memberId}')">‹</button>
+        <span class="cal-month-label">${MONTHS_FR[month]} ${year}</span>
+        <button class="cal-nav" onclick="calNext('${memberId}')">›</button>
+      </div>
+      <div class="cal-grid">${cells}</div>
+      <div class="cal-legend">
+        <span><div class="dot" style="background:rgba(247,111,111,.4);border:1px solid var(--red)"></div>Absent</span>
+        <span><div class="dot" style="background:rgba(42,47,69,.5)"></div>Weekend</span>
+        <span><div class="dot" style="background:rgba(247,212,79,.15);border:1px solid var(--yellow)"></div>Férié</span>
+        <span><div class="dot" style="opacity:.3;background:var(--text3)"></div>Hors sprint</span>
+      </div>
+    </div>`;
+}
+
+function toggleAbsence(memberId, dateStr) {
+  if (!state.absences[memberId]) state.absences[memberId] = {};
+  if (state.absences[memberId][dateStr]) delete state.absences[memberId][dateStr];
+  else state.absences[memberId][dateStr] = true;
+  saveState();
+  renderCalendar(memberId);
+  const absCount = Object.keys(state.absences[memberId]).length;
+  const countEl = document.getElementById('abs-count-'+memberId);
+  if (countEl) countEl.textContent = `${absCount} jour${absCount!==1?'s':''} d'absence`;
+  updateCalcAbsenceSummary();
+}
+
+function calPrev(memberId) {
+  let { year, month } = calState[memberId];
+  month--; if (month<0) { month=11; year--; }
+  calState[memberId] = { year, month };
+  renderCalendar(memberId);
+}
+
+function calNext(memberId) {
+  let { year, month } = calState[memberId];
+  month++; if (month>11) { month=0; year++; }
+  calState[memberId] = { year, month };
+  renderCalendar(memberId);
+}
+
+/* ════════════════════════════════════════
+   DASHBOARD
+════════════════════════════════════════ */
+let chartSprints, chartVelocity;
+
+function renderDashboard() {
+  const done = state.sprints.filter(s=>s.status==='done');
+  const active = state.sprints.filter(s=>s.status==='active');
+  const allBugs = state.sprints.reduce((s,x)=>s+(x.bugs||0),0);
+
+  const velocity = done.length>0 ? Math.round(done.reduce((s,x)=>s+x.done,0)/done.length) : null;
+  document.getElementById('kpi-velocity').textContent = velocity!==null?velocity:'—';
+
+  const totalC = done.reduce((s,x)=>s+x.committed,0);
+  const totalD = done.reduce((s,x)=>s+x.done,0);
+  const completion = totalC>0 ? Math.round(totalD/totalC*100) : null;
+  document.getElementById('kpi-completion').textContent = completion!==null?completion:'—';
+  document.getElementById('kpi-bugs').textContent = allBugs;
+  document.getElementById('kpi-active').textContent = active.length;
+  document.getElementById('kpi-total-delta').textContent = state.sprints.length+' sprints au total';
+
+  if (done.length>=2) {
+    const diff = done[done.length-1].done - done[done.length-2].done;
+    const el = document.getElementById('kpi-velocity-delta');
+    el.textContent = (diff>=0?'▲ +':'▼ ')+diff+' pts vs sprint précédent';
+    el.className = 'kpi-delta '+(diff>=0?'up':'down');
+  }
+
+  const ctx1 = document.getElementById('chart-sprints').getContext('2d');
+  if (chartSprints) chartSprints.destroy();
+  chartSprints = new Chart(ctx1, {
+    type:'bar',
+    data:{ labels:state.sprints.map(s=>s.name), datasets:[
+      {label:'Engagés',data:state.sprints.map(s=>s.committed),backgroundColor:'rgba(79,142,247,.5)',borderColor:'#4f8ef7',borderWidth:2,borderRadius:5},
+      {label:'Réalisés',data:state.sprints.map(s=>s.done),backgroundColor:'rgba(62,207,142,.5)',borderColor:'#3ecf8e',borderWidth:2,borderRadius:5}
+    ]},
+    options:chartOptions(true)
+  });
+
+  const ctx2 = document.getElementById('chart-velocity').getContext('2d');
+  if (chartVelocity) chartVelocity.destroy();
+  chartVelocity = new Chart(ctx2, {
+    type:'line',
+    data:{ labels:done.map(s=>s.name), datasets:[{ label:'Vélocité', data:done.map(s=>s.done), borderColor:'#7c5cfc', backgroundColor:'rgba(124,92,252,.15)', borderWidth:2.5, pointBackgroundColor:'#7c5cfc', pointRadius:4, tension:.4, fill:true }] },
+    options:chartOptions(false)
+  });
+
+  renderSprintTable('recent-sprints-table', state.sprints.slice(-5).reverse());
+}
+
+function renderSprintsPage() { renderSprintTable('all-sprints-table', [...state.sprints].reverse()); }
+
+function renderSprintTable(containerId, sprints) {
+  const el = document.getElementById(containerId);
+  if (!sprints||!sprints.length) { el.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><p>Aucun sprint.<br>Cliquez sur « Nouveau sprint ».</p></div>'; return; }
+  const pct = s => s.committed>0?Math.round(s.done/s.committed*100):0;
+  el.innerHTML = `<table class="sprints-table"><thead><tr>
+    <th>Sprint</th><th>Statut</th><th>Dates</th><th>Engagés</th><th>Réalisés</th><th>Complétion</th><th>Bugs</th><th>RUN</th>
+  </tr></thead><tbody>
+  ${sprints.map(s=>{
+    const runM = state.members.find(x=>x.id===s.runMemberId);
+    return `<tr onclick="renderDetail('${s.id}')">
+      <td><span class="sprint-name">${s.name}</span></td>
+      <td>${statusBadge(s.status)}</td>
+      <td>${s.startDate?fmtDate(s.startDate)+' → '+(s.endDate?fmtDate(s.endDate):'?'):'<span style="color:var(--text3)">—</span>'}</td>
+      <td style="font-family:var(--mono)">${s.committed}</td>
+      <td style="font-family:var(--mono)">${s.done}</td>
+      <td><div style="display:flex;align-items:center;gap:8px;"><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct(s),100)}%;background:${pct(s)>=90?'var(--green)':pct(s)>=70?'var(--orange)':'var(--red)'}"></div></div><span style="font-size:11px;color:var(--text3)">${pct(s)}%</span></div></td>
+      <td>${s.bugs>0?`<span class="badge badge-red">${s.bugs}</span>`:'<span style="color:var(--text3)">0</span>'}</td>
+      <td>${runM?`<span style="font-size:12px;color:var(--orange)">🔥 ${runM.name}</span>`:'<span style="color:var(--text3)">—</span>'}</td>
+    </tr>`;
+  }).join('')}
+  </tbody></table>`;
+}
+
+/* ════════════════════════════════════════
+   RISK SELECTOR
+════════════════════════════════════════ */
+function selectRisk(level) {
+  state.selectedRisk = level;
+  document.querySelectorAll('.risk-btn').forEach(b=>b.className='risk-btn');
+  document.getElementById('risk-'+level).className='risk-btn selected-'+level;
+  calcCapacity();
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function statusBadge(status) {
+  const map={active:['badge-blue','⚡ En cours'],done:['badge-green','✓ Terminé'],planned:['badge-orange','◷ Planifié']};
+  const [cls,label]=map[status]||['badge-orange',status];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function fmtDate(d) {
+  if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;
+}
+
+function chartOptions(showLegend) {
+  return { responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:showLegend, labels:{color:'#9099b5',font:{size:11},boxWidth:10} } },
+    scales:{ x:{ticks:{color:'#9099b5',font:{size:10}},grid:{color:'rgba(42,47,69,.6)'}}, y:{ticks:{color:'#9099b5',font:{size:10}},grid:{color:'rgba(42,47,69,.6)'}} }
+  };
+}
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+loadState();
+document.getElementById('team-name-display').textContent = state.team;
+if (state.calcDates?.start) { document.getElementById('calc-start').value = state.calcDates.start; document.getElementById('calc-end').value = state.calcDates.end; }
+populateRunSelects();
+renderDashboard();
+
+// Auto-open datepicker au clic sur l'input (tous les inputs date)
+document.addEventListener('click', e => {
+  if (e.target.matches('input[type="date"]')) {
+    try { e.target.showPicker(); } catch(_) {}
+  }
+});
+
+document.querySelectorAll('.modal-overlay').forEach(o => { o.addEventListener('click', e => { if(e.target===o) o.classList.remove('open'); }); });
+</script>
+</body>
+</html>
