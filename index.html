@@ -634,7 +634,7 @@ function allHolidaysInRange(s,e){
 function isWeekend(ds){const d=new Date(ds+'T12:00:00');return d.getDay()===0||d.getDay()===6;}
 function workingDays(s,e,h){
   const days=[],d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00');
-  while(d<=end){const str=d.toLocaleDateString('fr-CA');if(!isWeekend(str)&&!h[str])days.push(str);d.setDate(d.getDate()+1);}
+  while(d<end){const str=d.toLocaleDateString('fr-CA');if(!isWeekend(str)&&!h[str])days.push(str);d.setDate(d.getDate()+1);}
   return days;
 }
 
