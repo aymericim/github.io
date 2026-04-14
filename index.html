@@ -175,7 +175,8 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .cal-day:hover:not(.d-other):not(.d-weekend){background:var(--surface3);color:var(--text);}
 .cal-day.d-other{color:var(--text3);opacity:.25;pointer-events:none;}
 .cal-day.d-weekend{color:var(--text3);background:rgba(42,47,69,.3);cursor:default;}
-.cal-day.d-holiday{color:var(--yellow);background:rgba(247,212,79,.08);cursor:default;font-weight:700;}
+.cal-day.d-holiday{color:var(--yellow);background:rgba(247,212,79,.08);cursor:pointer;font-weight:700;}
+.cal-day.d-holiday-off{color:var(--text2);background:rgba(247,212,79,.03);border:1px dashed rgba(247,212,79,.3);cursor:pointer;font-weight:700;}
 .cal-day.d-absent{background:rgba(247,111,111,.25);border-color:rgba(247,111,111,.5);color:var(--red);font-weight:700;}
 .cal-day.d-half{background:rgba(247,156,79,.2);border-color:rgba(247,156,79,.4);color:var(--orange);font-weight:700;}
 .cal-day.d-today{outline:1px solid var(--accent);}
@@ -540,6 +541,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
         <select id="mm-role">
           <option value="dev">Développeur</option>
           <option value="tl">Tech Lead</option>
+          <option value="smdev">Scrum Master / Développeur</option>
           <option value="po">Product Owner</option>
           <option value="sm">Scrum Master</option>
           <option value="qa">QA</option>
@@ -551,7 +553,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
         <input type="number" id="mm-contrib" min="10" max="100" value="100" placeholder="100">
       </div>
     </div>
-    <div class="info-box">Seuls les rôles <strong>Développeur</strong> et <strong>Tech Lead</strong> sont comptabilisés dans la capacité DEV. La contribution par défaut peut être ajustée sprint par sprint dans le calculateur.</div>
+    <div class="info-box">Seuls les rôles <strong>Développeur</strong>, <strong>Tech Lead</strong> et <strong>Scrum Master / Développeur</strong> sont comptabilisés dans la capacité DEV. La contribution par défaut peut être ajustée sprint par sprint dans le calculateur.</div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-member')">Annuler</button>
       <button class="btn btn-primary" onclick="saveMember()">Enregistrer</button>
@@ -579,6 +581,7 @@ let S = {
   sprints:[],      // { id, name, status, startDate, endDate, committed, done, goal, notes, confiance, moral, roti, anomalies:{highest,high,medium,anoB,anoNB,stockEnd} }
   members:[],      // { id, name, role, contrib }
   absences:{},     // { memberId: { 'YYYY-MM-DD': 1 | 0.5 } }
+  disabledHolidays:{}, // { 'YYYY-MM-DD': true } — fériés désactivés (jour de solidarité etc.)
   team:'Mon équipe',
   risk:'low',
   capOverrides:{}, // { sprintId: { memberId: { contrib, isRun } } }
@@ -619,12 +622,19 @@ function frHolidays(year){
 function holidaysInRange(s,e){
   const yrs=new Set(),d=new Date(s);while(d<=new Date(e)){yrs.add(d.getFullYear());d.setMonth(d.getMonth()+1);}
   let all={};yrs.forEach(y=>Object.assign(all,frHolidays(y)));
+  // Exclure les fériés désactivés (traités comme jours ouvrés)
+  return Object.fromEntries(Object.entries(all).filter(([k])=>k>=s&&k<=e&&!S.disabledHolidays[k]));
+}
+function allHolidaysInRange(s,e){
+  // Tous les fériés, désactivés ou non (pour affichage)
+  const yrs=new Set(),d=new Date(s);while(d<=new Date(e)){yrs.add(d.getFullYear());d.setMonth(d.getMonth()+1);}
+  let all={};yrs.forEach(y=>Object.assign(all,frHolidays(y)));
   return Object.fromEntries(Object.entries(all).filter(([k])=>k>=s&&k<=e));
 }
 function isWeekend(ds){const d=new Date(ds+'T12:00:00');return d.getDay()===0||d.getDay()===6;}
 function workingDays(s,e,h){
   const days=[],d=new Date(s+'T12:00:00'),end=new Date(e+'T12:00:00');
-  while(d<end){const str=d.toLocaleDateString('fr-CA');if(!isWeekend(str)&&!h[str])days.push(str);d.setDate(d.getDate()+1);}
+  while(d<=end){const str=d.toLocaleDateString('fr-CA');if(!isWeekend(str)&&!h[str])days.push(str);d.setDate(d.getDate()+1);}
   return days;
 }
 
@@ -741,9 +751,9 @@ function renderDetail(id){
   const predic=sp.committed>0?Math.round(sp.done/sp.committed*100)/100:null;
   document.getElementById('dt-predic').textContent=predic!=null?(predic*100).toFixed(0)+'%':'—';
   const ov=S.capOverrides[id]||{};
-  const runId=Object.keys(ov).find(mid=>ov[mid]?.isRun)||null;
-  const runM=S.members.find(x=>x.id===runId);
-  document.getElementById('dt-run').textContent=runM?runM.name:'—';
+  const runIds=Object.keys(ov).filter(mid=>ov[mid]?.isRun);
+  const runNames=runIds.map(mid=>S.members.find(x=>x.id===mid)?.name).filter(Boolean);
+  document.getElementById('dt-run').textContent=runNames.length?runNames.join(', '):'—';
   const pct=sp.committed>0?Math.round(sp.done/sp.committed*100):0;
   document.getElementById('dt-pct').textContent=pct+'%';
   document.getElementById('dt-progress').style.width=Math.min(pct,100)+'%';
@@ -797,7 +807,7 @@ function loadAnomalies(){
   if(sp.startDate&&sp.endDate){
     const h=holidaysInRange(sp.startDate,sp.endDate);
     const wd=workingDays(sp.startDate,sp.endDate,h);
-    const devMembers=S.members.filter(m=>['dev','tl'].includes(m.role));
+    const devMembers=S.members.filter(m=>isDevRole(m.role));
     devMembers.forEach(m=>{
       const abs=S.absences[m.id]||{};
       wd.forEach(d=>{ presenceDays+=(abs[d]!==undefined?1-abs[d]:1); });
@@ -840,15 +850,17 @@ function loadAnomalies(){
       </div>
     </div>
   </div>`;
-  updateAnoRecap(spId,presenceDays);
+  updateAnoRecap(spId);
 }
 function anoRow(key,label,val,threshold,color,kpi,spId){
   const over=threshold!=null&&val>threshold;
-  return`<div class="ano-row">
+  return`<div class="ano-row" id="ano-row-${key}">
     <span class="ano-label" style="color:${color}">${label}</span>
     <span style="font-size:10px;color:var(--text3)">${kpi}</span>
-    <input type="number" class="ano-input form-group" value="${val}" min="0" style="width:70px;text-align:center;background:var(--surface3);border:1px solid ${over?'var(--red)':'var(--border)'};border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:14px;padding:5px 8px;outline:none;" oninput="saveAnoField('${spId}','${key}',this.value);updateAnoRecap('${spId}')">
-    ${threshold!=null?`<span class="ano-threshold" style="color:${over?'var(--red)':'var(--green)'}">Seuil: ${threshold.toFixed(1)} ${over?'⚠ DÉPASSÉ':'✓ OK'}</span>`:''}
+    <input type="number" id="ano-input-${key}" value="${val}" min="0"
+      style="width:70px;text-align:center;background:var(--surface3);border:1px solid ${over?'var(--red)':'var(--border)'};border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:14px;padding:5px 8px;outline:none;"
+      oninput="saveAnoField('${spId}','${key}',this.value)">
+    ${threshold!=null?`<span id="ano-thresh-${key}" class="ano-threshold" style="color:${over?'var(--red)':'var(--green)'}">Seuil: ${threshold.toFixed(1)} ${over?'⚠ DÉPASSÉ':'✓ OK'}</span>`:''}
   </div>`;
 }
 function saveAnoField(spId,key,val){
@@ -856,8 +868,33 @@ function saveAnoField(spId,key,val){
   sp.anomalies=sp.anomalies||{};
   sp.anomalies[key]=parseFloat(val)||0;
   save();
+  // Mise à jour dynamique du seuil si applicable
+  const threshMap={highest:0.02,high:0.04,medium:0.10};
+  if(threshMap[key]!==undefined){
+    // Recalcul présence
+    let presD=0;
+    if(sp.startDate&&sp.endDate){
+      const h=holidaysInRange(sp.startDate,sp.endDate);
+      const wd=workingDays(sp.startDate,sp.endDate,h);
+      S.members.filter(m=>isDevRole(m.role)).forEach(m=>{
+        const abs=S.absences[m.id]||{};
+        wd.forEach(d=>{presD+=(abs[d]!==undefined?1-abs[d]:1);});
+      });
+    }
+    const threshold=presD*threshMap[key];
+    const newVal=sp.anomalies[key];
+    const over=newVal>threshold;
+    const inputEl=document.getElementById('ano-input-'+key);
+    const threshEl=document.getElementById('ano-thresh-'+key);
+    if(inputEl)inputEl.style.borderColor=over?'var(--red)':'var(--border)';
+    if(threshEl){
+      threshEl.style.color=over?'var(--red)':'var(--green)';
+      threshEl.textContent=`Seuil: ${threshold.toFixed(1)} ${over?'⚠ DÉPASSÉ':'✓ OK'}`;
+    }
+  }
+  updateAnoRecap(spId);
 }
-function updateAnoRecap(spId,presenceDays){
+function updateAnoRecap(spId){
   const sp=S.sprints.find(x=>x.id===spId);if(!sp)return;
   const a=sp.anomalies||{};
   // Stock info
@@ -912,7 +949,7 @@ function selectRisk(level){
   save();renderCapacite();
 }
 function renderCapContribList(spId){
-  const devMembers=S.members.filter(m=>['dev','tl'].includes(m.role));
+  const devMembers=S.members.filter(m=>isDevRole(m.role));
   const el=document.getElementById('cap-contrib-list');
   if(!devMembers.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;">Aucun membre DEV/TL.</div>';return;}
   if(!S.capOverrides[spId])S.capOverrides[spId]={};
@@ -938,11 +975,8 @@ function setContribOverride(spId,mid,key,val){
 }
 function toggleRun(spId,mid){
   if(!S.capOverrides[spId])S.capOverrides[spId]={};
-  // only one RUN at a time
-  Object.keys(S.capOverrides[spId]).forEach(k=>{if(S.capOverrides[spId][k])S.capOverrides[spId][k].isRun=false;});
   if(!S.capOverrides[spId][mid])S.capOverrides[spId][mid]={};
-  const cur=S.capOverrides[spId][mid].isRun;
-  S.capOverrides[spId][mid].isRun=!cur;
+  S.capOverrides[spId][mid].isRun=!S.capOverrides[spId][mid].isRun;
   save();renderCapContribList(spId);renderCapacite();
 }
 function renderCapacite(){
@@ -981,11 +1015,17 @@ function renderCapacite(){
       </tr>`).join('')}</tbody>
     </table>`;
   }
-  const hEntries=Object.entries(holidays||{});
-  document.getElementById('cap-holidays').innerHTML=hEntries.length?hEntries.map(([d,n])=>`<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(42,47,69,.4);font-size:12px;"><span style="color:var(--yellow)">${fmtDate(d)}</span><span>${n}</span></div>`).join(''):'Aucun jour férié sur cette période.';
+  const allHEntries=Object.entries(allHolidaysInRange(sp.startDate,sp.endDate));
+  document.getElementById('cap-holidays').innerHTML=allHEntries.length?allHEntries.map(([d,n])=>{
+    const disabled=!!S.disabledHolidays[d];
+    return`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(42,47,69,.4);font-size:12px;">
+      <span style="color:${disabled?'var(--text3)':'var(--yellow)'};${disabled?'text-decoration:line-through':''}">${fmtDate(d)} — ${n}</span>
+      <button onclick="toggleHoliday('${d}')" style="font-size:10px;padding:2px 8px;border-radius:20px;border:1px solid ${disabled?'var(--green)':'rgba(247,111,111,.4)'};background:${disabled?'rgba(62,207,142,.1)':'rgba(247,111,111,.1)'};color:${disabled?'var(--green)':'var(--red)'};cursor:pointer;font-family:var(--sans);">${disabled?'Restaurer':'Désactiver'}</button>
+    </div>`;
+  }).join(''):'Aucun jour férié sur cette période.';
 }
 function computeCapacity(spId,start,end){
-  const devMembers=S.members.filter(m=>['dev','tl'].includes(m.role));
+  const devMembers=S.members.filter(m=>isDevRole(m.role));
   if(!devMembers.length||!start||!end)return{capDev:0,capRun:0,details:[],holidays:{},factor:1};
   const holidays=holidaysInRange(start,end);
   const factor={low:0.95,moderate:0.80,high:0.65}[S.risk];
@@ -1053,7 +1093,7 @@ function renderCal(memberId){
   const DAYS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
   const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
   const today=new Date().toLocaleDateString('fr-CA');
-  const h=frHolidays(year);
+  const allH=frHolidays(year);
   const firstDay=new Date(year,month,1);
   const lastDay=new Date(year,month+1,0);
   let startWd=firstDay.getDay();startWd=startWd===0?6:startWd-1;
@@ -1061,19 +1101,22 @@ function renderCal(memberId){
   DAYS.forEach(d=>{cells+=`<div class="cal-day-label">${d}</div>`;});
   for(let i=0;i<startWd;i++)cells+=`<div class="cal-day d-other"></div>`;
   for(let d=1;d<=lastDay.getDate();d++){
-    const ds=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const ds=new Date(year,month,d).toLocaleDateString('fr-CA');
     const wd=new Date(year,month,d).getDay();
     const isWe=wd===0||wd===6;
-    const isH=!!h[ds];
+    const isH=!!allH[ds];
+    const isHDisabled=isH&&!!S.disabledHolidays[ds];
     const absVal=abs[ds];
     let cls='cal-day';
     if(isWe)cls+=' d-weekend';
-    else if(isH)cls+=' d-holiday';
+    else if(isH&&!isHDisabled)cls+=' d-holiday';
+    else if(isH&&isHDisabled)cls+=' d-holiday-off';
     else if(absVal===1)cls+=' d-absent';
     else if(absVal===0.5)cls+=' d-half';
     if(ds===today)cls+=' d-today';
-    const title=isH?h[ds]:absVal===1?'Absent (journée)':absVal===0.5?'Absent (demi-journée)':'';
-    cells+=`<div class="${cls}" title="${title}" onclick="toggleAbs('${memberId}','${ds}')">${d}</div>`;
+    const clickFn=isH?`toggleHoliday('${ds}')`:`toggleAbs('${memberId}','${ds}')`;
+    const titleTxt=isH?(isHDisabled?allH[ds]+' (jour travaillé — clic pour restaurer)':allH[ds]+' (férié — clic pour désactiver)'):absVal===1?'Absent (journée)':absVal===0.5?'Absent (demi-journée)':'';
+    cells+=`<div class="${cls}" title="${titleTxt}" onclick="${clickFn}">${d}</div>`;
   }
   wrap.innerHTML=`
     <div class="cal-header">
@@ -1083,11 +1126,22 @@ function renderCal(memberId){
     </div>
     <div class="cal-days">${cells}</div>
     <div class="cal-legend">
-      <span><div class="dot" style="background:rgba(247,111,111,.4);border:1px solid var(--red)"></div>Journée</span>
+      <span><div class="dot" style="background:rgba(247,111,111,.4);border:1px solid var(--red)"></div>Journée abs.</span>
       <span><div class="dot" style="background:rgba(247,156,79,.3);border:1px solid var(--orange)"></div>Demi-journée</span>
       <span><div class="dot" style="background:rgba(42,47,69,.5)"></div>Weekend</span>
       <span><div class="dot" style="background:rgba(247,212,79,.15);border:1px solid var(--yellow)"></div>Férié</span>
+      <span><div class="dot" style="border:1px dashed rgba(247,212,79,.4)"></div>Férié désactivé</span>
     </div>`;
+}
+function toggleHoliday(ds){
+  if(S.disabledHolidays[ds])delete S.disabledHolidays[ds];
+  else S.disabledHolidays[ds]=true;
+  save();
+  // Re-render tous les cals visibles
+  S.members.forEach(m=>{if(document.getElementById('cal-'+m.id))renderCal(m.id);});
+  // Re-render capacité si un sprint est sélectionné
+  const spId=document.getElementById('cap-sprint-select')?.value;
+  if(spId)renderCapacite();
 }
 function toggleAbs(memberId,ds){
   if(!S.absences[memberId])S.absences[memberId]={};
@@ -1146,14 +1200,14 @@ function renderMembresPage(){
       <td class="td-name">${m.name}</td>
       <td><span class="badge ${roleBadgeClass(m.role)}">${roleLabel(m.role)}</span></td>
       <td style="font-family:var(--mono)">${m.contrib}%</td>
-      <td>${['dev','tl'].includes(m.role)?'<span class="badge badge-green">✓ Oui</span>':'<span class="badge badge-gray">Non</span>'}</td>
+      <td>${isDevRole(m.role)?'<span class="badge badge-green">✓ Oui</span>':'<span class="badge badge-gray">Non</span>'}</td>
       <td><button class="btn btn-ghost btn-xs" onclick="editMember('${m.id}')">✏</button> <button class="btn btn-danger btn-xs" onclick="deleteMember('${m.id}')">🗑</button></td>
     </tr>`).join('')}</tbody>
   </table>`;
   renderCalibGrid();
 }
 function renderCalibGrid(){
-  const devM=S.members.filter(m=>['dev','tl'].includes(m.role));
+  const devM=S.members.filter(m=>isDevRole(m.role));
   const el=document.getElementById('calib-grid');
   if(!devM.length){el.innerHTML='<div style="color:var(--text3);font-size:13px;">Aucun membre DEV/TL défini.</div>';return;}
   const N=5;// nb max sprints calibration
@@ -1176,7 +1230,7 @@ function updateCalib(mid,idx,val){
   if(el)el.textContent=computeCalibContrib(mid);
 }
 function computeCalibContrib(mid){
-  const devM=S.members.filter(m=>['dev','tl'].includes(m.role));
+  const devM=S.members.filter(m=>isDevRole(m.role));
   const allAvg=devM.map(m=>{
     const pts=(S.calib[m.id]||[]).filter(x=>x>0);
     return pts.length?pts.reduce((a,b)=>a+b,0)/pts.length:null;
@@ -1190,7 +1244,7 @@ function computeCalibContrib(mid){
   return`→ ${contrib}% (moy. ${myAvg.toFixed(1)} pts)`;
 }
 function applyCalibration(){
-  const devM=S.members.filter(m=>['dev','tl'].includes(m.role));
+  const devM=S.members.filter(m=>isDevRole(m.role));
   const allAvg=devM.map(m=>{
     const pts=(S.calib[m.id]||[]).filter(x=>x>0);
     return{id:m.id,avg:pts.length?pts.reduce((a,b)=>a+b,0)/pts.length:null};
@@ -1233,7 +1287,7 @@ function renderDashboard(){
     if(last.startDate&&last.endDate){
       const h=holidaysInRange(last.startDate,last.endDate);
       const wd=workingDays(last.startDate,last.endDate,h);
-      S.members.filter(m=>['dev','tl'].includes(m.role)).forEach(m=>{
+      S.members.filter(m=>isDevRole(m.role)).forEach(m=>{
         const abs=S.absences[m.id]||{};
         wd.forEach(d=>{presD+=(abs[d]!==undefined?1-abs[d]:1);});
       });
@@ -1331,8 +1385,9 @@ function renderSprintsPage(){
    HELPERS
 ═══════════════════════════════════════════ */
 function statusBadge(s){const m={active:['badge-blue','⚡ En cours'],done:['badge-green','✓ Terminé'],planned:['badge-orange','◷ Planifié']};const[c,l]=m[s]||['badge-gray',s];return`<span class="badge ${c}">${l}</span>`;}
-function roleLabel(r){return{dev:'Développeur',tl:'Tech Lead',po:'Product Owner',sm:'Scrum Master',qa:'QA',autre:'Autre'}[r]||r;}
-function roleBadgeClass(r){return{dev:'badge-blue',tl:'badge-purple',po:'badge-green',sm:'badge-orange',qa:'badge-yellow',autre:'badge-gray'}[r]||'badge-gray';}
+function roleLabel(r){return{dev:'Développeur',tl:'Tech Lead',smdev:'SM / Développeur',po:'Product Owner',sm:'Scrum Master',qa:'QA',autre:'Autre'}[r]||r;}
+function roleBadgeClass(r){return{dev:'badge-blue',tl:'badge-purple',smdev:'badge-green',po:'badge-green',sm:'badge-orange',qa:'badge-yellow',autre:'badge-gray'}[r]||'badge-gray';}
+function isDevRole(r){return['dev','tl','smdev'].includes(r);}
 function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
 function chartOpts(legend){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:legend,labels:{color:'#9099b5',font:{size:11},boxWidth:10}}},scales:{x:{ticks:{color:'#9099b5',font:{size:10}},grid:{color:'rgba(42,47,69,.5)'}},y:{ticks:{color:'#9099b5',font:{size:10}},grid:{color:'rgba(42,47,69,.5)'}}}};}
 
