@@ -350,11 +350,13 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     </div>
   </div>
 
-  <div class="stats-row">
-    <div class="stat-item"><div class="s-label">Points engagés</div><div class="s-value" id="dt-committed">—</div></div>
-    <div class="stat-item"><div class="s-label">Points réalisés</div><div class="s-value" id="dt-done">—</div></div>
-    <div class="stat-item"><div class="s-label">PREDIC</div><div class="s-value" id="dt-predic">—</div></div>
-    <div class="stat-item"><div class="s-label">Resp. RUN</div><div class="s-value" id="dt-run" style="font-size:14px;">—</div></div>
+  <div class="stats-row" style="grid-template-columns:repeat(6,1fr);">
+    <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Engagés DEV</div><div class="s-value" id="dt-committed-dev">—</div></div>
+    <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Réalisés DEV</div><div class="s-value" id="dt-done-dev">—</div></div>
+    <div class="stat-item" style="border-top:2px solid var(--orange)"><div class="s-label" style="color:var(--orange)">🔥 Engagés RUN</div><div class="s-value" id="dt-committed-run">—</div></div>
+    <div class="stat-item" style="border-top:2px solid var(--orange)"><div class="s-label" style="color:var(--orange)">🔥 Réalisés RUN</div><div class="s-value" id="dt-done-run">—</div></div>
+    <div class="stat-item"><div class="s-label">PREDIC (DEV)</div><div class="s-value" id="dt-predic">—</div></div>
+    <div class="stat-item"><div class="s-label">Resp. RUN</div><div class="s-value" id="dt-run" style="font-size:13px;">—</div></div>
   </div>
 
   <!-- Notes confiance/moral/ROTI -->
@@ -377,13 +379,17 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   </div>
 
   <div class="two-col" style="margin-bottom:16px;">
-    <div class="card"><div class="card-title">Points engagés vs réalisés</div><div class="chart-wrap"><canvas id="chart-dt-bar"></canvas></div></div>
+    <div class="card"><div class="card-title">Points engagés vs réalisés — DEV &amp; RUN</div><div class="chart-wrap"><canvas id="chart-dt-bar"></canvas></div></div>
     <div class="card">
       <div class="card-title">Statut</div>
-      <div style="display:flex;flex-direction:column;gap:12px;padding-top:8px;height:190px;justify-content:center;">
+      <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px;height:190px;justify-content:center;">
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);margin-bottom:5px;"><span>Taux de complétion</span><span id="dt-pct">—</span></div>
-          <div class="progress-bar" style="height:8px;"><div class="progress-fill" id="dt-progress" style="background:var(--accent);width:0%"></div></div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--accent);margin-bottom:4px;"><span>⚙ DEV</span><span id="dt-pct-dev">—</span></div>
+          <div class="progress-bar" style="height:7px;"><div class="progress-fill" id="dt-progress-dev" style="background:var(--accent);width:0%"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--orange);margin-bottom:4px;"><span>🔥 RUN</span><span id="dt-pct-run">—</span></div>
+          <div class="progress-bar" style="height:7px;"><div class="progress-fill" id="dt-progress-run" style="background:var(--orange);width:0%"></div></div>
         </div>
         <div style="font-size:13px;color:var(--text2);">Statut : <span id="dt-status"></span></div>
         <div style="font-size:13px;color:var(--text2);">Objectif : <em id="dt-goal" style="color:var(--text3)">—</em></div>
@@ -536,10 +542,32 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
       <div class="form-group"><label>Date de début</label><input type="date" id="ms-start"></div>
       <div class="form-group"><label>Date de fin</label><input type="date" id="ms-end"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>Points engagés</label><input type="number" id="ms-committed" placeholder="ex: 40" min="0"></div>
-      <div class="form-group"><label>Points réalisés</label><input type="number" id="ms-done" placeholder="ex: 36" min="0"></div>
+    <!-- Points engagés -->
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Points engagés</div>
+    <div class="form-row" style="margin-bottom:4px;">
+      <div class="form-group">
+        <label style="color:var(--accent);">⚙ DEV</label>
+        <input type="number" id="ms-committed-dev" placeholder="ex: 35" min="0" oninput="updateCommittedTotal()">
+      </div>
+      <div class="form-group">
+        <label style="color:var(--orange);">🔥 RUN</label>
+        <input type="number" id="ms-committed-run" placeholder="ex: 5" min="0" oninput="updateCommittedTotal()">
+      </div>
     </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Total engagé : <strong id="ms-committed-total" style="color:var(--text)">0</strong> pts</div>
+    <!-- Points réalisés -->
+    <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Points réalisés</div>
+    <div class="form-row" style="margin-bottom:4px;">
+      <div class="form-group">
+        <label style="color:var(--accent);">⚙ DEV</label>
+        <input type="number" id="ms-done-dev" placeholder="ex: 32" min="0" oninput="updateDoneTotal()">
+      </div>
+      <div class="form-group">
+        <label style="color:var(--orange);">🔥 RUN</label>
+        <input type="number" id="ms-done-run" placeholder="ex: 4" min="0" oninput="updateDoneTotal()">
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Total réalisé : <strong id="ms-done-total" style="color:var(--text)">0</strong> pts</div>
     <div class="form-group"><label>Objectif du sprint</label><textarea id="ms-goal" placeholder="Objectif principal du sprint…"></textarea></div>
     <!-- Notes confiance/moral/ROTI -->
     <div class="form-row-3">
@@ -833,23 +861,44 @@ function closeModal(id){document.getElementById(id).classList.remove('open');}
 /* ═══════════════════════════════════════════
    SPRINTS CRUD
 ═══════════════════════════════════════════ */
+function updateCommittedTotal(){
+  const dev=parseFloat(document.getElementById('ms-committed-dev').value)||0;
+  const run=parseFloat(document.getElementById('ms-committed-run').value)||0;
+  document.getElementById('ms-committed-total').textContent=dev+run;
+}
+function updateDoneTotal(){
+  const dev=parseFloat(document.getElementById('ms-done-dev').value)||0;
+  const run=parseFloat(document.getElementById('ms-done-run').value)||0;
+  document.getElementById('ms-done-total').textContent=dev+run;
+}
 function openAddSprint(){
   S.editingId=null;
   document.getElementById('ms-title').textContent='Nouveau sprint';
-  ['ms-name','ms-start','ms-end','ms-committed','ms-done','ms-goal','ms-confiance','ms-moral','ms-roti'].forEach(id=>document.getElementById(id).value='');
+  ['ms-name','ms-start','ms-end','ms-committed-dev','ms-committed-run','ms-done-dev','ms-done-run','ms-goal','ms-confiance','ms-moral','ms-roti'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-status').value='active';
+  document.getElementById('ms-committed-total').textContent='0';
+  document.getElementById('ms-done-total').textContent='0';
   document.getElementById('modal-sprint').classList.add('open');
 }
 function editCurrentSprint(){
   const sp=S.sprints.find(x=>x.id===S.currentSprint);if(!sp)return;
+  // Migration rétrocompatible : si l'ancien format, mettre tout en DEV
+  const cDev=sp.committedDev!=null?sp.committedDev:sp.committed||0;
+  const cRun=sp.committedRun||0;
+  const dDev=sp.doneDev!=null?sp.doneDev:sp.done||0;
+  const dRun=sp.doneRun||0;
   S.editingId=sp.id;
   document.getElementById('ms-title').textContent='Modifier le sprint';
   document.getElementById('ms-name').value=sp.name;
   document.getElementById('ms-status').value=sp.status;
   document.getElementById('ms-start').value=sp.startDate||'';
   document.getElementById('ms-end').value=sp.endDate||'';
-  document.getElementById('ms-committed').value=sp.committed||'';
-  document.getElementById('ms-done').value=sp.done||'';
+  document.getElementById('ms-committed-dev').value=cDev||'';
+  document.getElementById('ms-committed-run').value=cRun||'';
+  document.getElementById('ms-done-dev').value=dDev||'';
+  document.getElementById('ms-done-run').value=dRun||'';
+  document.getElementById('ms-committed-total').textContent=cDev+cRun;
+  document.getElementById('ms-done-total').textContent=dDev+dRun;
   document.getElementById('ms-goal').value=sp.goal||'';
   document.getElementById('ms-confiance').value=sp.confiance!=null?sp.confiance:'';
   document.getElementById('ms-moral').value=sp.moral!=null?sp.moral:'';
@@ -859,13 +908,19 @@ function editCurrentSprint(){
 function saveSprint(){
   const name=document.getElementById('ms-name').value.trim();if(!name){alert('Nom requis');return;}
   const ex=S.editingId?S.sprints.find(x=>x.id===S.editingId):null;
+  const committedDev=parseFloat(document.getElementById('ms-committed-dev').value)||0;
+  const committedRun=parseFloat(document.getElementById('ms-committed-run').value)||0;
+  const doneDev=parseFloat(document.getElementById('ms-done-dev').value)||0;
+  const doneRun=parseFloat(document.getElementById('ms-done-run').value)||0;
   const sp={
     id:S.editingId||Date.now().toString(),name,
     status:document.getElementById('ms-status').value,
     startDate:document.getElementById('ms-start').value,
     endDate:document.getElementById('ms-end').value,
-    committed:parseFloat(document.getElementById('ms-committed').value)||0,
-    done:parseFloat(document.getElementById('ms-done').value)||0,
+    committedDev, committedRun,
+    committed:committedDev+committedRun, // conservé pour rétrocompatibilité
+    doneDev, doneRun,
+    done:doneDev+doneRun, // conservé pour rétrocompatibilité
     goal:document.getElementById('ms-goal').value.trim(),
     confiance:parseFloat(document.getElementById('ms-confiance').value)||null,
     moral:parseFloat(document.getElementById('ms-moral').value)||null,
@@ -913,20 +968,36 @@ function renderNotes(sp){
 function renderDetail(id){
   S.currentSprint=id;
   const sp=S.sprints.find(x=>x.id===id);if(!sp)return;
+  // Migration rétrocompatible
+  const cDev=sp.committedDev!=null?sp.committedDev:sp.committed||0;
+  const cRun=sp.committedRun||0;
+  const dDev=sp.doneDev!=null?sp.doneDev:sp.done||0;
+  const dRun=sp.doneRun||0;
+
   document.getElementById('dt-title').textContent=sp.name;
   document.getElementById('dt-dates').textContent=sp.startDate&&sp.endDate?fmtDate(sp.startDate)+' → '+fmtDate(sp.endDate):'Dates non définies';
-  document.getElementById('dt-committed').textContent=sp.committed+' pts';
-  document.getElementById('dt-done').textContent=sp.done+' pts';
-  const predic=sp.committed>0?Math.round(sp.done/sp.committed*100)/100:null;
+  document.getElementById('dt-committed-dev').textContent=cDev+' pts';
+  document.getElementById('dt-done-dev').textContent=dDev+' pts';
+  document.getElementById('dt-committed-run').textContent=cRun+' pts';
+  document.getElementById('dt-done-run').textContent=dRun+' pts';
+
+  // PREDIC = DEV uniquement
+  const predic=cDev>0?Math.round(dDev/cDev*100)/100:null;
   document.getElementById('dt-predic').textContent=predic!=null?(predic*100).toFixed(0)+'%':'—';
+
   const ov=S.capOverrides[id]||{};
   const runIds=Object.keys(ov).filter(mid=>ov[mid]?.isRun);
   const runNames=runIds.map(mid=>S.members.find(x=>x.id===mid)?.name).filter(Boolean);
   document.getElementById('dt-run').textContent=runNames.length?runNames.join(', '):'—';
-  const pct=sp.committed>0?Math.round(sp.done/sp.committed*100):0;
-  document.getElementById('dt-pct').textContent=pct+'%';
-  document.getElementById('dt-progress').style.width=Math.min(pct,100)+'%';
-  document.getElementById('dt-progress').style.background=pct>=90?'var(--green)':pct>=70?'var(--orange)':'var(--red)';
+
+  // Barres de progression séparées
+  const pctDev=cDev>0?Math.round(dDev/cDev*100):0;
+  const pctRun=cRun>0?Math.round(dRun/cRun*100):0;
+  document.getElementById('dt-pct-dev').textContent=pctDev+'%';
+  document.getElementById('dt-progress-dev').style.width=Math.min(pctDev,100)+'%';
+  document.getElementById('dt-pct-run').textContent=cRun>0?pctRun+'%':'—';
+  document.getElementById('dt-progress-run').style.width=Math.min(pctRun,100)+'%';
+
   document.getElementById('dt-goal').textContent=sp.goal||'Non défini';
   document.getElementById('dt-status').innerHTML=statusBadge(sp.status);
   // Stars
@@ -934,10 +1005,18 @@ function renderDetail(id){
   renderStarDisplay('dt-moral',sp.moral,'var(--green)');
   renderStarDisplay('dt-roti',sp.roti,'var(--purple)');
   renderNotes(sp);
-  // Bar chart
+  // Bar chart DEV + RUN
   const ctx=document.getElementById('chart-dt-bar').getContext('2d');
   if(window._dtChart)window._dtChart.destroy();
-  window._dtChart=new Chart(ctx,{type:'bar',data:{labels:['Engagés','Réalisés'],datasets:[{data:[sp.committed,sp.done],backgroundColor:['rgba(79,142,247,.6)','rgba(62,207,142,.6)'],borderColor:['#4f8ef7','#3ecf8e'],borderWidth:2,borderRadius:6}]},options:chartOpts(false)});
+  window._dtChart=new Chart(ctx,{type:'bar',data:{
+    labels:['Engagés DEV','Réalisés DEV','Engagés RUN','Réalisés RUN'],
+    datasets:[{
+      data:[cDev,dDev,cRun,dRun],
+      backgroundColor:['rgba(79,142,247,.5)','rgba(79,142,247,.85)','rgba(247,156,79,.5)','rgba(247,156,79,.85)'],
+      borderColor:['#4f8ef7','#4f8ef7','#f79c4f','#f79c4f'],
+      borderWidth:2,borderRadius:6
+    }]
+  },options:chartOpts(false)});
   // Navigate
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
@@ -1436,15 +1515,21 @@ function renderDashboard(){
   const last=done[done.length-1];
   const last3=done.slice(-3);
 
-  // KPIs principaux
-  const avgVel=done.length?Math.round(done.reduce((s,x)=>s+x.done,0)/done.length):null;
-  const predic=last?.committed>0?last.done/last.committed:null;
-  const velom=last3.length?last3.reduce((s,x)=>s+(x.committed>0?x.done/x.committed:0),0)/last3.length:null;
+  // Migration helper
+  const cDev=s=>s.committedDev!=null?s.committedDev:s.committed||0;
+  const cRun=s=>s.committedRun||0;
+  const dDev=s=>s.doneDev!=null?s.doneDev:s.done||0;
+  const dRun=s=>s.doneRun||0;
+
+  // KPIs principaux — vélocité DEV uniquement
+  const avgVelDev=done.length?Math.round(done.reduce((a,x)=>a+dDev(x),0)/done.length):null;
+  const predic=last&&cDev(last)>0?dDev(last)/cDev(last):null;
+  const velom=last3.length?last3.reduce((a,x)=>a+(cDev(x)>0?dDev(x)/cDev(x):0),0)/last3.length:null;
   const totalBugs=S.sprints.reduce((s,x)=>s+(x.anomalies?.highest||0)+(x.anomalies?.high||0)+(x.anomalies?.medium||0),0);
 
   document.getElementById('kpi-main-grid').innerHTML=[
-    kpiCard('Vélocité moyenne','c-blue',avgVel!=null?avgVel:'—','pts',done.length>=2?(done[done.length-1].done-done[done.length-2].done>=0?'▲ +':'▼ ')+(done[done.length-1].done-done[done.length-2].done)+' pts':'Aucun sprint terminé'),
-    kpiCard('Prédictibilité','c-green',predic!=null?(predic*100).toFixed(0)+'%':'—','',last?'Dernier sprint terminé':'—',predic!=null?predic>=1?'alert-ok':predic>=0.85?'alert-warn':'alert-fail':''),
+    kpiCard('Vélocité DEV moy.','c-blue',avgVelDev!=null?avgVelDev:'—','pts',done.length>=2?(dDev(done[done.length-1])-dDev(done[done.length-2])>=0?'▲ +':'▼ ')+(dDev(done[done.length-1])-dDev(done[done.length-2]))+' pts':'Aucun sprint terminé'),
+    kpiCard('PREDIC (DEV)','c-green',predic!=null?(predic*100).toFixed(0)+'%':'—','',last?'Dernier sprint terminé':'—',predic!=null?predic>=1?'alert-ok':predic>=0.85?'alert-warn':'alert-fail':''),
     kpiCard('VELOM (3 sprints)','c-purple',velom!=null?(velom*100).toFixed(0)+'%':'—','',velom!=null?(velom>=1?'✓ Stable':velom>=0.85?'⚠ Attention':'✗ Alerte'):'—',velom!=null?velom>=1?'alert-ok':velom>=0.85?'alert-warn':'alert-fail':''),
     kpiCard('Anomalies totales','c-orange',totalBugs,'bugs','Tous sprints confondus'),
   ].join('');
@@ -1487,23 +1572,26 @@ function renderDashboard(){
   }
 
   // Charts
-  destroyChart('burnup');
-  destroyChart('velocity');
-  destroyChart('notes');
+  destroyChart('burnup');destroyChart('velocity');destroyChart('notes');
 
   const burnupCtx=document.getElementById('chart-burnup').getContext('2d');
   charts.burnup=new Chart(burnupCtx,{type:'bar',data:{
     labels:S.sprints.map(s=>s.name),
     datasets:[
-      {label:'Engagés',data:S.sprints.map(s=>s.committed),backgroundColor:'rgba(79,142,247,.5)',borderColor:'#4f8ef7',borderWidth:2,borderRadius:4},
-      {label:'Réalisés',data:S.sprints.map(s=>s.done),backgroundColor:'rgba(62,207,142,.5)',borderColor:'#3ecf8e',borderWidth:2,borderRadius:4}
+      {label:'⚙ Engagés DEV',data:S.sprints.map(s=>cDev(s)),backgroundColor:'rgba(79,142,247,.4)',borderColor:'#4f8ef7',borderWidth:2,borderRadius:4},
+      {label:'⚙ Réalisés DEV',data:S.sprints.map(s=>dDev(s)),backgroundColor:'rgba(79,142,247,.8)',borderColor:'#4f8ef7',borderWidth:2,borderRadius:4},
+      {label:'🔥 Engagés RUN',data:S.sprints.map(s=>cRun(s)),backgroundColor:'rgba(247,156,79,.4)',borderColor:'#f79c4f',borderWidth:2,borderRadius:4},
+      {label:'🔥 Réalisés RUN',data:S.sprints.map(s=>dRun(s)),backgroundColor:'rgba(247,156,79,.8)',borderColor:'#f79c4f',borderWidth:2,borderRadius:4},
     ]},options:chartOpts(true)});
 
   const velCtx=document.getElementById('chart-velocity').getContext('2d');
   charts.velocity=new Chart(velCtx,{type:'line',data:{
     labels:done.map(s=>s.name),
-    datasets:[{label:'Vélocité',data:done.map(s=>s.done),borderColor:'#7c5cfc',backgroundColor:'rgba(124,92,252,.15)',borderWidth:2.5,pointBackgroundColor:'#7c5cfc',pointRadius:4,tension:.4,fill:true}]
-  },options:chartOpts(false)});
+    datasets:[
+      {label:'Vélocité DEV',data:done.map(s=>dDev(s)),borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,.15)',borderWidth:2.5,pointBackgroundColor:'#4f8ef7',pointRadius:4,tension:.4,fill:true},
+      {label:'Vélocité RUN',data:done.map(s=>dRun(s)),borderColor:'#f79c4f',backgroundColor:'rgba(247,156,79,.1)',borderWidth:2,pointBackgroundColor:'#f79c4f',pointRadius:3,tension:.4,fill:false,borderDash:[4,3]},
+    ]
+  },options:chartOpts(true)});
 
   const notesCtx=document.getElementById('chart-notes').getContext('2d');
   charts.notes=new Chart(notesCtx,{type:'line',data:{
@@ -1528,25 +1616,43 @@ function kpiCardThresh(label,colorCls,val,unit,thresh,alertCls=''){
 function renderSprintsPage(){
   const el=document.getElementById('sprints-table-wrap');
   if(!S.sprints.length){el.innerHTML='<div class="empty-state"><div class="empty-icon">🏁</div><p>Aucun sprint.</p></div>';return;}
-  const pct=s=>s.committed>0?Math.round(s.done/s.committed*100):0;
   el.innerHTML=`<table class="data-table">
-    <thead><tr><th>Sprint</th><th>Statut</th><th>Dates</th><th>Engagés</th><th>Réalisés</th><th>PREDIC</th><th>Confiance</th><th>Moral</th><th>ROTI</th></tr></thead>
-    <tbody>${[...S.sprints].reverse().map(s=>`<tr onclick="renderDetail('${s.id}')">
-      <td class="td-name">${s.name}</td>
-      <td>${statusBadge(s.status)}</td>
-      <td style="font-size:12px">${s.startDate?fmtDate(s.startDate)+' → '+fmtDate(s.endDate):'—'}</td>
-      <td style="font-family:var(--mono)">${s.committed}</td>
-      <td style="font-family:var(--mono)">${s.done}</td>
-      <td>
-        <div style="display:flex;align-items:center;gap:6px;">
-          <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(pct(s),100)}%;background:${pct(s)>=90?'var(--green)':pct(s)>=70?'var(--orange)':'var(--red)'}"></div></div>
-          <span style="font-size:11px;color:var(--text3)">${pct(s)}%</span>
-        </div>
-      </td>
-      <td style="font-family:var(--mono);color:var(--accent)">${s.confiance!=null?s.confiance.toFixed(1):'—'}</td>
-      <td style="font-family:var(--mono);color:var(--green)">${s.moral!=null?s.moral.toFixed(1):'—'}</td>
-      <td style="font-family:var(--mono);color:var(--purple)">${s.roti!=null?s.roti.toFixed(1):'—'}</td>
-    </tr>`).join('')}</tbody>
+    <thead><tr>
+      <th>Sprint</th><th>Statut</th><th>Dates</th>
+      <th style="color:var(--accent)">⚙ Eng. DEV</th><th style="color:var(--accent)">⚙ Réal. DEV</th>
+      <th style="color:var(--orange)">🔥 Eng. RUN</th><th style="color:var(--orange)">🔥 Réal. RUN</th>
+      <th>PREDIC</th><th>Confiance</th><th>Moral</th><th>ROTI</th>
+    </tr></thead>
+    <tbody>${[...S.sprints].reverse().map(s=>{
+      const cDev=s.committedDev!=null?s.committedDev:s.committed||0;
+      const cRun=s.committedRun||0;
+      const dDev=s.doneDev!=null?s.doneDev:s.done||0;
+      const dRun=s.doneRun||0;
+      const predic=cDev>0?Math.round(dDev/cDev*100):0;
+      return`<tr onclick="renderDetail('${s.id}')">
+        <td class="td-name">${s.name}</td>
+        <td>${statusBadge(s.status)}</td>
+        <td style="font-size:12px">${s.startDate?fmtDate(s.startDate)+' → '+fmtDate(s.endDate):'—'}</td>
+        <td style="font-family:var(--mono);color:var(--accent)">${cDev}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(cDev>0?Math.round(dDev/cDev*100):0,100)}%;background:var(--accent)"></div></div>
+            <span style="font-size:11px;font-family:var(--mono);color:var(--accent)">${dDev}</span>
+          </div>
+        </td>
+        <td style="font-family:var(--mono);color:var(--orange)">${cRun}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:5px;">
+            <div class="progress-bar"><div class="progress-fill" style="width:${Math.min(cRun>0?Math.round(dRun/cRun*100):0,100)}%;background:var(--orange)"></div></div>
+            <span style="font-size:11px;font-family:var(--mono);color:var(--orange)">${dRun}</span>
+          </div>
+        </td>
+        <td><span style="font-family:var(--mono);color:${predic>=90?'var(--green)':predic>=70?'var(--orange)':'var(--red)'}">${cDev>0?predic+'%':'—'}</span></td>
+        <td style="font-family:var(--mono);color:var(--accent)">${s.confiance!=null?s.confiance.toFixed(1):'—'}</td>
+        <td style="font-family:var(--mono);color:var(--green)">${s.moral!=null?s.moral.toFixed(1):'—'}</td>
+        <td style="font-family:var(--mono);color:var(--purple)">${s.roti!=null?s.roti.toFixed(1):'—'}</td>
+      </tr>`;
+    }).join('')}</tbody>
   </table>`;
 }
 
