@@ -350,7 +350,8 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     </div>
   </div>
 
-  <div class="stats-row" style="grid-template-columns:repeat(6,1fr);">
+  <!-- Points DEV / RUN -->
+  <div class="stats-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px;">
     <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Engagés DEV</div><div class="s-value" id="dt-committed-dev">—</div></div>
     <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Réalisés DEV</div><div class="s-value" id="dt-done-dev">—</div></div>
     <div class="stat-item" style="border-top:2px solid var(--orange)"><div class="s-label" style="color:var(--orange)">🔥 Engagés RUN</div><div class="s-value" id="dt-committed-run">—</div></div>
@@ -358,6 +359,10 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     <div class="stat-item"><div class="s-label">PREDIC (DEV)</div><div class="s-value" id="dt-predic">—</div></div>
     <div class="stat-item"><div class="s-label">Resp. RUN</div><div class="s-value" id="dt-run" style="font-size:13px;">—</div></div>
   </div>
+
+  <!-- KPIs contextualisés -->
+  <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Indicateurs du sprint</div>
+  <div id="dt-kpi-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:20px;"></div>
 
   <!-- Notes confiance/moral/ROTI -->
   <div class="three-col" style="margin-bottom:16px;">
@@ -394,6 +399,18 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
         <div style="font-size:13px;color:var(--text2);">Statut : <span id="dt-status"></span></div>
         <div style="font-size:13px;color:var(--text2);">Objectif : <em id="dt-goal" style="color:var(--text3)">—</em></div>
       </div>
+    </div>
+  </div>
+
+  <!-- Anomalies + Capacité côte à côte -->
+  <div class="two-col" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="card-title">Anomalies du sprint <button class="btn btn-ghost btn-xs" onclick="goTo('anomalies')" style="font-weight:400;">Saisir →</button></div>
+      <div id="dt-anomalies-recap"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Capacité calculée <button class="btn btn-ghost btn-xs" onclick="goTo('capacite')" style="font-weight:400;">Configurer →</button></div>
+      <div id="dt-capacite-recap"></div>
     </div>
   </div>
 
@@ -965,14 +982,17 @@ function renderNotes(sp){
 /* ═══════════════════════════════════════════
    DETAIL SPRINT
 ═══════════════════════════════════════════ */
+// Helper migration rétrocompatible
+function spCDev(s){return s.committedDev!=null?s.committedDev:s.committed||0;}
+function spCRun(s){return s.committedRun||0;}
+function spDDev(s){return s.doneDev!=null?s.doneDev:s.done||0;}
+function spDRun(s){return s.doneRun||0;}
+function spPredic(s){return spCDev(s)>0?spDDev(s)/spCDev(s):null;}
+
 function renderDetail(id){
   S.currentSprint=id;
   const sp=S.sprints.find(x=>x.id===id);if(!sp)return;
-  // Migration rétrocompatible
-  const cDev=sp.committedDev!=null?sp.committedDev:sp.committed||0;
-  const cRun=sp.committedRun||0;
-  const dDev=sp.doneDev!=null?sp.doneDev:sp.done||0;
-  const dRun=sp.doneRun||0;
+  const cDev=spCDev(sp), cRun=spCRun(sp), dDev=spDDev(sp), dRun=spDRun(sp);
 
   document.getElementById('dt-title').textContent=sp.name;
   document.getElementById('dt-dates').textContent=sp.startDate&&sp.endDate?fmtDate(sp.startDate)+' → '+fmtDate(sp.endDate):'Dates non définies';
@@ -982,7 +1002,7 @@ function renderDetail(id){
   document.getElementById('dt-done-run').textContent=dRun+' pts';
 
   // PREDIC = DEV uniquement
-  const predic=cDev>0?Math.round(dDev/cDev*100)/100:null;
+  const predic=spPredic(sp);
   document.getElementById('dt-predic').textContent=predic!=null?(predic*100).toFixed(0)+'%':'—';
 
   const ov=S.capOverrides[id]||{};
@@ -990,21 +1010,65 @@ function renderDetail(id){
   const runNames=runIds.map(mid=>S.members.find(x=>x.id===mid)?.name).filter(Boolean);
   document.getElementById('dt-run').textContent=runNames.length?runNames.join(', '):'—';
 
-  // Barres de progression séparées
+  // Barres de progression
   const pctDev=cDev>0?Math.round(dDev/cDev*100):0;
   const pctRun=cRun>0?Math.round(dRun/cRun*100):0;
   document.getElementById('dt-pct-dev').textContent=pctDev+'%';
   document.getElementById('dt-progress-dev').style.width=Math.min(pctDev,100)+'%';
   document.getElementById('dt-pct-run').textContent=cRun>0?pctRun+'%':'—';
   document.getElementById('dt-progress-run').style.width=Math.min(pctRun,100)+'%';
-
   document.getElementById('dt-goal').textContent=sp.goal||'Non défini';
   document.getElementById('dt-status').innerHTML=statusBadge(sp.status);
+
+  // ── KPIs contextualisés ──
+  const sprintIdx=S.sprints.findIndex(x=>x.id===id);
+  // VELOM : moyenne PREDIC des 3 sprints terminés qui PRÉCÈDENT ce sprint dans la liste
+  const prevDone=S.sprints.slice(0,sprintIdx).filter(x=>x.status==='done');
+  const last3prev=prevDone.slice(-3);
+  const velom=last3prev.length>0
+    ? last3prev.reduce((a,x)=>a+(spPredic(x)||0),0)/last3prev.length
+    : null;
+  const velomLabel=velom!=null?(velom*100).toFixed(0)+'%':'—';
+  const velomAlert=velom!=null?(velom>=1?'alert-ok':velom>=0.85?'alert-warn':'alert-fail'):'';
+  const velomInfo=velom!=null
+    ? `Moy. ${last3prev.length} sprint${last3prev.length>1?'s':''} préc. (${last3prev.map(x=>x.name).join(', ')})`
+    : last3prev.length===0?'Pas de sprints précédents terminés':'—';
+
+  // KPIs qualité anomalies
+  const a=sp.anomalies||{};
+  let presD=0;
+  if(sp.startDate&&sp.endDate){
+    const h=holidaysInRange(sp.startDate,sp.endDate);
+    const wd=workingDays(sp.startDate,sp.endDate,h);
+    S.members.filter(m=>isDevRole(m.role)).forEach(m=>{
+      const abs=S.absences[m.id]||{};
+      wd.forEach(d=>{presD+=(abs[d]!==undefined?1-abs[d]:1);});
+    });
+  }
+  const thH=presD*0.02, thHH=presD*0.04, thM=presD*0.10;
+
+  // STOCKANO : ce sprint / sprint terminé précédent
+  const prevTermine=S.sprints.slice(0,sprintIdx).filter(x=>x.status==='done').slice(-1)[0];
+  const stockano=prevTermine?.anomalies?.stockEnd>0
+    ? ((a.stockEnd||0)/prevTermine.anomalies.stockEnd*100).toFixed(0)+'%'
+    : '—';
+
+  document.getElementById('dt-kpi-grid').innerHTML=[
+    kpiCard('VELOM','c-purple', velomLabel,'', velomInfo, velomAlert),
+    kpiCardThresh('NBANO.1','c-red',   a.highest||0,'',`Seuil : ${thH.toFixed(1)}`,(a.highest||0)<=thH?'alert-ok':'alert-fail'),
+    kpiCardThresh('NBANO.2','c-orange',a.high||0,   '','Seuil : '+thHH.toFixed(1),(a.high||0)<=thHH?'alert-ok':'alert-fail'),
+    kpiCardThresh('NBANO.3','c-yellow',a.medium||0, '','Seuil : '+thM.toFixed(1), (a.medium||0)<=thM?'alert-ok':'alert-fail'),
+    kpiCard('NBANO.B','c-red',  a.anoB||0, '','Bloquant métier'),
+    kpiCard('NBANO.NB','c-orange',a.anoNB||0,'','Non bloquant métier'),
+    kpiCard('STOCKANO','c-purple',stockano,'','Stock / sprint préc. × 100'),
+  ].join('');
+
   // Stars
   renderStarDisplay('dt-confiance',sp.confiance,'var(--accent)');
   renderStarDisplay('dt-moral',sp.moral,'var(--green)');
   renderStarDisplay('dt-roti',sp.roti,'var(--purple)');
   renderNotes(sp);
+
   // Bar chart DEV + RUN
   const ctx=document.getElementById('chart-dt-bar').getContext('2d');
   if(window._dtChart)window._dtChart.destroy();
@@ -1017,6 +1081,55 @@ function renderDetail(id){
       borderWidth:2,borderRadius:6
     }]
   },options:chartOpts(false)});
+
+  // ── Récap anomalies ──
+  const anoEl=document.getElementById('dt-anomalies-recap');
+  anoEl.innerHTML=`<table class="data-table" style="font-size:12px;">
+    <tr><td>NBANO.1 — HIGHEST</td>
+      <td style="font-family:var(--mono);font-weight:700;color:${(a.highest||0)<=thH?'var(--green)':'var(--red)'}">${a.highest||0}</td>
+      <td style="font-size:10px;color:var(--text3)">seuil ${thH.toFixed(1)}</td></tr>
+    <tr><td>NBANO.2 — HIGH</td>
+      <td style="font-family:var(--mono);font-weight:700;color:${(a.high||0)<=thHH?'var(--green)':'var(--red)'}">${a.high||0}</td>
+      <td style="font-size:10px;color:var(--text3)">seuil ${thHH.toFixed(1)}</td></tr>
+    <tr><td>NBANO.3 — MEDIUM/LOW</td>
+      <td style="font-family:var(--mono);font-weight:700;color:${(a.medium||0)<=thM?'var(--green)':'var(--red)'}">${a.medium||0}</td>
+      <td style="font-size:10px;color:var(--text3)">seuil ${thM.toFixed(1)}</td></tr>
+    <tr><td>NBANO.B — Bloquant métier</td><td style="font-family:var(--mono);font-weight:700;color:var(--text)">${a.anoB||0}</td><td></td></tr>
+    <tr><td>NBANO.NB — Non bloquant</td><td style="font-family:var(--mono);font-weight:700;color:var(--text)">${a.anoNB||0}</td><td></td></tr>
+    <tr><td>Stock fin sprint</td><td style="font-family:var(--mono);font-weight:700;color:var(--text)">${a.stockEnd||0}</td>
+      <td style="font-size:10px;color:var(--text3)">${stockano!=='—'?'STOCKANO : '+stockano:''}</td></tr>
+    ${presD>0?`<tr><td colspan="3" style="color:var(--text3);font-size:10px;padding-top:6px;">Jours de présence DEV : ${presD.toFixed(1)}j</td></tr>`:''}
+  </table>`;
+
+  // ── Récap capacité ──
+  const capEl=document.getElementById('dt-capacite-recap');
+  if(sp.startDate&&sp.endDate&&S.members.filter(m=>isDevRole(m.role)).length){
+    const{capDev,capRun,details}=computeCapacity(id,sp.startDate,sp.endDate);
+    capEl.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+        <div style="background:rgba(79,142,247,.08);border:1px solid rgba(79,142,247,.3);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">⚙ Capacité DEV</div>
+          <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--accent)">${capDev.toFixed(1)}</div>
+          <div style="font-size:10px;color:var(--text3)">points</div>
+        </div>
+        <div style="background:rgba(247,156,79,.08);border:1px solid rgba(247,156,79,.3);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:10px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">🔥 Capacité RUN</div>
+          <div style="font-family:var(--mono);font-size:22px;font-weight:700;color:var(--orange)">${capRun.toFixed(1)}</div>
+          <div style="font-size:10px;color:var(--text3)">points</div>
+        </div>
+      </div>
+      <table class="data-table" style="font-size:12px;">
+        ${details.map(d=>`<tr>
+          <td>${d.name}</td>
+          <td style="color:var(--text3)">${d.contrib}%</td>
+          <td style="font-family:var(--mono);color:var(--text)">${d.cap.toFixed(1)} pts</td>
+          <td>${d.isRun?'<span class="run-badge">🔥 RUN</span>':'<span class="badge badge-blue" style="font-size:10px;">DEV</span>'}</td>
+        </tr>`).join('')}
+      </table>`;
+  } else {
+    capEl.innerHTML=`<div style="color:var(--text3);font-size:13px;padding:8px 0;">${!sp.startDate?'Dates non définies sur ce sprint.':!S.members.filter(m=>isDevRole(m.role)).length?'Aucun membre DEV/TL configuré.':'—'}</div>`;
+  }
+
   // Navigate
   document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
@@ -1515,11 +1628,8 @@ function renderDashboard(){
   const last=done[done.length-1];
   const last3=done.slice(-3);
 
-  // Migration helper
-  const cDev=s=>s.committedDev!=null?s.committedDev:s.committed||0;
-  const cRun=s=>s.committedRun||0;
-  const dDev=s=>s.doneDev!=null?s.doneDev:s.done||0;
-  const dRun=s=>s.doneRun||0;
+  // Migration helper — utilise les fonctions globales spCDev etc.
+  const cDev=s=>spCDev(s), cRun=s=>spCRun(s), dDev=s=>spDDev(s), dRun=s=>spDRun(s);
 
   // KPIs principaux — vélocité DEV uniquement
   const avgVelDev=done.length?Math.round(done.reduce((a,x)=>a+dDev(x),0)/done.length):null;
