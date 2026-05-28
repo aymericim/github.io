@@ -214,10 +214,10 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 /* ── ANOMALIES ── */
 .ano-layout{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .ano-severity{display:flex;flex-direction:column;gap:8px;}
-.ano-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);}
-.ano-label{flex:1;font-size:13px;font-weight:600;}
+.ano-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);flex-wrap:wrap;}
+.ano-label{flex:1;font-size:13px;font-weight:600;min-width:160px;}
 .ano-input{width:70px;text-align:center;background:var(--surface3) !important;border:1px solid var(--border) !important;font-family:var(--mono) !important;}
-.ano-threshold{font-size:11px;color:var(--text3);}
+.ano-threshold{font-size:11px;white-space:nowrap;}
 
 /* ── DETAIL ── */
 .detail-header{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
@@ -321,9 +321,23 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     <div class="card"><div class="card-title">Points engagés vs réalisés</div><div class="chart-wrap"><canvas id="chart-burnup"></canvas></div></div>
     <div class="card"><div class="card-title">Vélocité (sprints terminés)</div><div class="chart-wrap"><canvas id="chart-velocity"></canvas></div></div>
   </div>
-  <div class="card">
+  <div class="card" style="margin-bottom:14px;">
     <div class="card-title">Notes équipe — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">Confiance · Moral · ROTI</span></div>
     <div class="chart-wrap"><canvas id="chart-notes"></canvas></div>
+  </div>
+  <div class="three-col" style="margin-bottom:14px;">
+    <div class="card">
+      <div class="card-title">PREDIC — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">réalisé DEV / engagé DEV</span></div>
+      <div class="chart-wrap"><canvas id="chart-predic"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">VELOM — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">moy. PREDIC 3 sprints préc.</span></div>
+      <div class="chart-wrap"><canvas id="chart-velom"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">STOCKANO — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">stock N / stock N-1 × 100</span></div>
+      <div class="chart-wrap"><canvas id="chart-stockano"></canvas></div>
+    </div>
   </div>
 </section>
 
@@ -1047,8 +1061,8 @@ function renderDetail(id){
   }
   const thH=presD*0.02, thHH=presD*0.04, thM=presD*0.10;
 
-  // STOCKANO : ce sprint / sprint terminé précédent
-  const prevTermine=S.sprints.slice(0,sprintIdx).filter(x=>x.status==='done').slice(-1)[0];
+  // STOCKANO : ce sprint / sprint chronologiquement précédent (index-1)
+  const prevTermine=sprintIdx>0?S.sprints[sprintIdx-1]:null;
   const stockano=prevTermine?.anomalies?.stockEnd>0
     ? ((a.stockEnd||0)/prevTermine.anomalies.stockEnd*100).toFixed(0)+'%'
     : '—';
@@ -1183,9 +1197,9 @@ function loadAnomalies(){
         <div class="card-title">Anomalies RECETTE CLIENT</div>
         <div class="info-box" style="margin-bottom:14px;">Seuil basé sur <strong>${presenceDays.toFixed(1)} jours</strong> de présence équipe DEV/TL${sp.startDate?` (${fmtDate(sp.startDate)} → ${fmtDate(sp.endDate)})`:' — dates non définies'}.</div>
         <div class="ano-severity">
-          ${anoRow('highest','HIGHEST — Bloquant',a.highest,thH,'var(--red)','NBANO.1',spId)}
-          ${anoRow('high','HIGH — Majeur',a.high,thHH,'var(--orange)','NBANO.2',spId)}
-          ${anoRow('medium','MEDIUM/LOW/LOWEST — Mineur',a.medium,thM,'var(--yellow)','NBANO.3',spId)}
+          ${anoRow('highest','HIGHEST — Bloquant',a.highest,thH,'var(--red)','NBANO.1',spId,0.02,presenceDays)}
+          ${anoRow('high','HIGH — Majeur',a.high,thHH,'var(--orange)','NBANO.2',spId,0.04,presenceDays)}
+          ${anoRow('medium','MEDIUM/LOW/LOWEST — Mineur',a.medium,thM,'var(--yellow)','NBANO.3',spId,0.10,presenceDays)}
         </div>
       </div>
       <div class="card">
@@ -1213,8 +1227,15 @@ function loadAnomalies(){
   </div>`;
   updateAnoRecap(spId);
 }
-function anoRow(key,label,val,threshold,color,kpi,spId){
+function anoRow(key,label,val,threshold,color,kpi,spId,rate=null,presD=0){
   const over=threshold!=null&&val>threshold;
+  // % réel = valeur / jours_présence × 100, à comparer à rate×100
+  const pctReel=(rate!=null&&presD>0)?(val/presD*100):null;
+  const pctSeuil=rate!=null?rate*100:null;
+  const pctColor=pctReel!=null?(pctReel>pctSeuil?'var(--red)':'var(--green)'):null;
+  const pctHtml=pctReel!=null
+    ?`<span id="ano-pct-${key}" style="font-family:var(--mono);font-size:12px;font-weight:700;color:${pctColor};min-width:90px;text-align:right;">${pctReel.toFixed(2)}% / ${pctSeuil}%</span>`
+    :'';
   return`<div class="ano-row" id="ano-row-${key}">
     <span class="ano-label" style="color:${color}">${label}</span>
     <span style="font-size:10px;color:var(--text3)">${kpi}</span>
@@ -1222,6 +1243,7 @@ function anoRow(key,label,val,threshold,color,kpi,spId){
       style="width:70px;text-align:center;background:var(--surface3);border:1px solid ${over?'var(--red)':'var(--border)'};border-radius:var(--radius-sm);color:var(--text);font-family:var(--mono);font-size:14px;padding:5px 8px;outline:none;"
       oninput="saveAnoField('${spId}','${key}',this.value)">
     ${threshold!=null?`<span id="ano-thresh-${key}" class="ano-threshold" style="color:${over?'var(--red)':'var(--green)'}">Seuil: ${threshold.toFixed(1)} ${over?'⚠ DÉPASSÉ':'✓ OK'}</span>`:''}
+    ${pctHtml}
   </div>`;
 }
 function saveAnoField(spId,key,val){
@@ -1229,10 +1251,9 @@ function saveAnoField(spId,key,val){
   sp.anomalies=sp.anomalies||{};
   sp.anomalies[key]=parseFloat(val)||0;
   save();
-  // Mise à jour dynamique du seuil si applicable
+  // Mise à jour dynamique du seuil + % réel si applicable
   const threshMap={highest:0.02,high:0.04,medium:0.10};
   if(threshMap[key]!==undefined){
-    // Recalcul présence
     let presD=0;
     if(sp.startDate&&sp.endDate){
       const h=holidaysInRange(sp.startDate,sp.endDate);
@@ -1242,15 +1263,27 @@ function saveAnoField(spId,key,val){
         wd.forEach(d=>{presD+=(abs[d]!==undefined?1-abs[d]:1);});
       });
     }
-    const threshold=presD*threshMap[key];
+    const rate=threshMap[key];
+    const threshold=presD*rate;
     const newVal=sp.anomalies[key];
     const over=newVal>threshold;
+    // Bordure input
     const inputEl=document.getElementById('ano-input-'+key);
-    const threshEl=document.getElementById('ano-thresh-'+key);
     if(inputEl)inputEl.style.borderColor=over?'var(--red)':'var(--border)';
+    // Texte seuil
+    const threshEl=document.getElementById('ano-thresh-'+key);
     if(threshEl){
       threshEl.style.color=over?'var(--red)':'var(--green)';
       threshEl.textContent=`Seuil: ${threshold.toFixed(1)} ${over?'⚠ DÉPASSÉ':'✓ OK'}`;
+    }
+    // % réel vs % seuil
+    const pctEl=document.getElementById('ano-pct-'+key);
+    if(pctEl&&presD>0){
+      const pctReel=newVal/presD*100;
+      const pctSeuil=rate*100;
+      const pctOver=pctReel>pctSeuil;
+      pctEl.style.color=pctOver?'var(--red)':'var(--green)';
+      pctEl.textContent=`${pctReel.toFixed(2)}% / ${pctSeuil}%`;
     }
   }
   updateAnoRecap(spId);
@@ -1258,12 +1291,19 @@ function saveAnoField(spId,key,val){
 function updateAnoRecap(spId){
   const sp=S.sprints.find(x=>x.id===spId);if(!sp)return;
   const a=sp.anomalies||{};
-  // Stock info
-  const prev=S.sprints.slice().reverse().find(x=>x.id!==spId&&x.status==='done');
+  // Sprint précédent chronologiquement (par position dans le tableau, pas par statut)
+  const sprintIdx=S.sprints.findIndex(x=>x.id===spId);
+  const prev=sprintIdx>0?S.sprints[sprintIdx-1]:null;
   const stockEl=document.getElementById('ano-stock-info');
-  if(stockEl&&prev&&prev.anomalies?.stockEnd){
-    const stockano=((a.stockEnd||0)/(prev.anomalies.stockEnd||1)*100).toFixed(1);
-    stockEl.innerHTML=`STOCKANO = ${a.stockEnd||0} / ${prev.anomalies.stockEnd} × 100 = <strong style="color:${parseFloat(stockano)>100?'var(--red)':'var(--green)'}">${stockano}</strong>`;
+  if(stockEl){
+    if(prev&&prev.anomalies?.stockEnd){
+      const stockano=((a.stockEnd||0)/(prev.anomalies.stockEnd||1)*100).toFixed(1);
+      stockEl.innerHTML=`STOCKANO = ${a.stockEnd||0} / ${prev.anomalies.stockEnd} (${prev.name}) × 100 = <strong style="color:${parseFloat(stockano)>100?'var(--red)':'var(--green)'}">${stockano}</strong>`;
+    } else if(prev){
+      stockEl.innerHTML=`<span style="color:var(--text3)">Sprint précédent (${prev.name}) : stock non renseigné.</span>`;
+    } else {
+      stockEl.innerHTML=`<span style="color:var(--text3)">Aucun sprint précédent.</span>`;
+    }
   }
   const rec=document.getElementById('ano-recap');
   if(!rec)return;
@@ -1657,7 +1697,8 @@ function renderDashboard(){
       });
     }
     const thH=presD*0.02,thHH=presD*0.04,thM=presD*0.10;
-    const prev=done[done.length-2];
+    const lastIdx=S.sprints.findIndex(x=>x.id===last.id);
+    const prev=lastIdx>0?S.sprints[lastIdx-1]:null;
     const stockano=prev?.anomalies?.stockEnd>0?((a.stockEnd||0)/(prev.anomalies.stockEnd)*100).toFixed(0)+'%':'—';
     document.getElementById('kpi-quality-grid').innerHTML=[
       kpiCardThresh('NBANO.1','c-red',a.highest||0,'',`Seuil : ${thH.toFixed(1)}`,(a.highest||0)<=thH?'alert-ok':'alert-fail'),
@@ -1683,6 +1724,7 @@ function renderDashboard(){
 
   // Charts
   destroyChart('burnup');destroyChart('velocity');destroyChart('notes');
+  destroyChart('predic');destroyChart('velom');destroyChart('stockano');
 
   const burnupCtx=document.getElementById('chart-burnup').getContext('2d');
   charts.burnup=new Chart(burnupCtx,{type:'bar',data:{
@@ -1711,6 +1753,47 @@ function renderDashboard(){
       {label:'Moral',data:done.map(s=>s.moral),borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:false},
       {label:'ROTI',data:done.map(s=>s.roti),borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.1)',borderWidth:2,pointRadius:4,tension:.4,fill:false}
     ]},options:{...chartOpts(true),scales:{...chartOpts(true).scales,y:{...chartOpts(true).scales.y,min:0,max:5}}}});
+
+  // ── PREDIC par sprint terminé ──
+  const predicData=done.map(s=>{const p=spPredic(s);return p!=null?Math.round(p*100):null;});
+  const predicCtx=document.getElementById('chart-predic').getContext('2d');
+  charts.predic=new Chart(predicCtx,{type:'line',data:{
+    labels:done.map(s=>s.name),
+    datasets:[
+      {label:'PREDIC %',data:predicData,borderColor:'#3ecf8e',backgroundColor:'rgba(62,207,142,.12)',borderWidth:2.5,pointBackgroundColor:'#3ecf8e',pointRadius:4,tension:.4,fill:true},
+      {label:'Cible 100%',data:done.map(()=>100),borderColor:'rgba(255,255,255,.15)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}
+    ]},options:{...chartOpts(true),scales:{...chartOpts(true).scales,y:{...chartOpts(true).scales.y,min:0,suggestedMax:120,ticks:{...chartOpts(true).scales.y.ticks,callback:v=>v+'%'}}}}});
+
+  // ── VELOM : pour chaque sprint terminé, moy PREDIC des 3 précédents ──
+  const velomData=done.map((_,i,arr)=>{
+    const prev3=arr.slice(Math.max(0,i-3),i);
+    if(!prev3.length)return null;
+    const avg=prev3.reduce((a,x)=>{const p=spPredic(x);return a+(p||0);},0)/prev3.length;
+    return Math.round(avg*100);
+  });
+  const velomCtx=document.getElementById('chart-velom').getContext('2d');
+  charts.velom=new Chart(velomCtx,{type:'line',data:{
+    labels:done.map(s=>s.name),
+    datasets:[
+      {label:'VELOM %',data:velomData,borderColor:'#a78bfa',backgroundColor:'rgba(167,139,250,.12)',borderWidth:2.5,pointBackgroundColor:'#a78bfa',pointRadius:4,tension:.4,fill:true,spanGaps:true},
+      {label:'Cible 100%',data:done.map(()=>100),borderColor:'rgba(255,255,255,.15)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}
+    ]},options:{...chartOpts(true),scales:{...chartOpts(true).scales,y:{...chartOpts(true).scales.y,min:0,suggestedMax:120,ticks:{...chartOpts(true).scales.y.ticks,callback:v=>v+'%'}}}}});
+
+  // ── STOCKANO : stock[i] / stock[i-1] × 100 (index chronologique) ──
+  const stockanoData=S.sprints.map((s,i)=>{
+    if(i===0)return null;
+    const prevStock=S.sprints[i-1]?.anomalies?.stockEnd;
+    const curStock=s.anomalies?.stockEnd;
+    if(!prevStock||curStock==null)return null;
+    return Math.round(curStock/prevStock*100);
+  });
+  const stockanoCtx=document.getElementById('chart-stockano').getContext('2d');
+  charts.stockano=new Chart(stockanoCtx,{type:'line',data:{
+    labels:S.sprints.map(s=>s.name),
+    datasets:[
+      {label:'STOCKANO',data:stockanoData,borderColor:'#f79c4f',backgroundColor:'rgba(247,156,79,.12)',borderWidth:2.5,pointBackgroundColor:stockanoData.map(v=>v==null?'transparent':v>100?'#f76f6f':'#3ecf8e'),pointRadius:4,tension:.4,fill:true,spanGaps:true},
+      {label:'Seuil 100%',data:S.sprints.map(()=>100),borderColor:'rgba(255,255,255,.15)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}
+    ]},options:{...chartOpts(true),scales:{...chartOpts(true).scales,y:{...chartOpts(true).scales.y,min:0,suggestedMax:150,ticks:{...chartOpts(true).scales.y.ticks,callback:v=>v+'%'}}}}});
 }
 function destroyChart(k){if(charts[k]){charts[k].destroy();delete charts[k];}}
 function kpiCard(label,colorCls,val,unit,delta,alertCls=''){
