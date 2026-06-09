@@ -307,7 +307,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   </div>
 
   <!-- KPIs principaux -->
-  <div id="kpi-main-grid" class="kpi-grid" style="grid-template-columns:repeat(4,1fr);"></div>
+  <div id="kpi-main-grid" class="kpi-grid" style="grid-template-columns:repeat(3,1fr);"></div>
 
   <!-- KPIs qualité -->
   <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">Indicateurs qualité — dernier sprint terminé</div>
@@ -365,8 +365,9 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   </div>
 
   <!-- Points DEV / RUN -->
-  <div class="stats-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:14px;">
+  <div class="stats-row" style="grid-template-columns:repeat(7,1fr);margin-bottom:14px;">
     <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Engagés DEV</div><div class="s-value" id="dt-committed-dev">—</div></div>
+    <div class="stat-item" style="border-top:2px solid rgba(79,142,247,.3);background:rgba(79,142,247,.04)"><div class="s-label" style="color:var(--text3)">📋 DEV initial RP</div><div class="s-value" id="dt-committed-dev-initial" style="font-size:15px;color:var(--text3)">—</div></div>
     <div class="stat-item" style="border-top:2px solid var(--accent)"><div class="s-label" style="color:var(--accent)">⚙ Réalisés DEV</div><div class="s-value" id="dt-done-dev">—</div></div>
     <div class="stat-item" style="border-top:2px solid var(--orange)"><div class="s-label" style="color:var(--orange)">🔥 Engagés RUN</div><div class="s-value" id="dt-committed-run">—</div></div>
     <div class="stat-item" style="border-top:2px solid var(--orange)"><div class="s-label" style="color:var(--orange)">🔥 Réalisés RUN</div><div class="s-value" id="dt-done-run">—</div></div>
@@ -585,7 +586,11 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
         <input type="number" id="ms-committed-run" placeholder="ex: 5" min="0" oninput="updateCommittedTotal()">
       </div>
     </div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Total engagé : <strong id="ms-committed-total" style="color:var(--text)">0</strong> pts</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Total engagé : <strong id="ms-committed-total" style="color:var(--text)">0</strong> pts</div>
+    <div class="form-group">
+      <label style="color:var(--text3);">📋 Engagé DEV initial — Release Planning <span style="font-weight:400;text-transform:none;font-size:10px;">(informatif, sans impact sur les indicateurs)</span></label>
+      <input type="number" id="ms-committed-dev-initial" placeholder="ex: 38" min="0">
+    </div>
     <!-- Points réalisés -->
     <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">Points réalisés</div>
     <div class="form-row" style="margin-bottom:4px;">
@@ -905,7 +910,7 @@ function updateDoneTotal(){
 function openAddSprint(){
   S.editingId=null;
   document.getElementById('ms-title').textContent='Nouveau sprint';
-  ['ms-name','ms-start','ms-end','ms-committed-dev','ms-committed-run','ms-done-dev','ms-done-run','ms-goal','ms-confiance','ms-moral','ms-roti'].forEach(id=>document.getElementById(id).value='');
+  ['ms-name','ms-start','ms-end','ms-committed-dev','ms-committed-run','ms-done-dev','ms-done-run','ms-committed-dev-initial','ms-goal','ms-confiance','ms-moral','ms-roti'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('ms-status').value='active';
   document.getElementById('ms-committed-total').textContent='0';
   document.getElementById('ms-done-total').textContent='0';
@@ -928,7 +933,7 @@ function editCurrentSprint(){
   document.getElementById('ms-committed-run').value=cRun||'';
   document.getElementById('ms-done-dev').value=dDev||'';
   document.getElementById('ms-done-run').value=dRun||'';
-  document.getElementById('ms-committed-total').textContent=cDev+cRun;
+  document.getElementById('ms-committed-dev-initial').value=sp.committedDevInitial||'';
   document.getElementById('ms-done-total').textContent=dDev+dRun;
   document.getElementById('ms-goal').value=sp.goal||'';
   document.getElementById('ms-confiance').value=sp.confiance!=null?sp.confiance:'';
@@ -943,13 +948,15 @@ function saveSprint(){
   const committedRun=parseFloat(document.getElementById('ms-committed-run').value)||0;
   const doneDev=parseFloat(document.getElementById('ms-done-dev').value)||0;
   const doneRun=parseFloat(document.getElementById('ms-done-run').value)||0;
+  const committedDevInitial=parseFloat(document.getElementById('ms-committed-dev-initial').value)||null;
   const sp={
     id:S.editingId||Date.now().toString(),name,
     status:document.getElementById('ms-status').value,
     startDate:document.getElementById('ms-start').value,
     endDate:document.getElementById('ms-end').value,
     committedDev, committedRun,
-    committed:committedDev+committedRun, // conservé pour rétrocompatibilité
+    committed:committedDev+committedRun,
+    committedDevInitial,
     doneDev, doneRun,
     done:doneDev+doneRun, // conservé pour rétrocompatibilité
     goal:document.getElementById('ms-goal').value.trim(),
@@ -1011,6 +1018,7 @@ function renderDetail(id){
   document.getElementById('dt-title').textContent=sp.name;
   document.getElementById('dt-dates').textContent=sp.startDate&&sp.endDate?fmtDate(sp.startDate)+' → '+fmtDate(sp.endDate):'Dates non définies';
   document.getElementById('dt-committed-dev').textContent=cDev+' pts';
+  document.getElementById('dt-committed-dev-initial').textContent=sp.committedDevInitial!=null?sp.committedDevInitial+' pts':'—';
   document.getElementById('dt-done-dev').textContent=dDev+' pts';
   document.getElementById('dt-committed-run').textContent=cRun+' pts';
   document.getElementById('dt-done-run').textContent=dRun+' pts';
@@ -1675,13 +1683,11 @@ function renderDashboard(){
   const avgVelDev=done.length?Math.round(done.reduce((a,x)=>a+dDev(x),0)/done.length):null;
   const predic=last&&cDev(last)>0?dDev(last)/cDev(last):null;
   const velom=last3.length?last3.reduce((a,x)=>a+(cDev(x)>0?dDev(x)/cDev(x):0),0)/last3.length:null;
-  const totalBugs=S.sprints.reduce((s,x)=>s+(x.anomalies?.highest||0)+(x.anomalies?.high||0)+(x.anomalies?.medium||0),0);
 
   document.getElementById('kpi-main-grid').innerHTML=[
     kpiCard('Vélocité DEV moy.','c-blue',avgVelDev!=null?avgVelDev:'—','pts',done.length>=2?(dDev(done[done.length-1])-dDev(done[done.length-2])>=0?'▲ +':'▼ ')+(dDev(done[done.length-1])-dDev(done[done.length-2]))+' pts':'Aucun sprint terminé'),
     kpiCard('PREDIC (DEV)','c-green',predic!=null?(predic*100).toFixed(0)+'%':'—','',last?'Dernier sprint terminé':'—',predic!=null?predic>=1?'alert-ok':predic>=0.85?'alert-warn':'alert-fail':''),
     kpiCard('VELOM (3 sprints)','c-purple',velom!=null?(velom*100).toFixed(0)+'%':'—','',velom!=null?(velom>=1?'✓ Stable':velom>=0.85?'⚠ Attention':'✗ Alerte'):'—',velom!=null?velom>=1?'alert-ok':velom>=0.85?'alert-warn':'alert-fail':''),
-    kpiCard('Anomalies totales','c-orange',totalBugs,'bugs','Tous sprints confondus'),
   ].join('');
 
   // KPIs qualité dernier sprint
