@@ -161,28 +161,40 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
 .contrib-run-btn{padding:4px 8px;font-size:11px;border-radius:20px;border:1px solid var(--border);background:var(--surface3);color:var(--text3);cursor:pointer;transition:all .15s;font-family:var(--sans);}
 .contrib-run-btn.is-run{background:rgba(247,156,79,.15);border-color:var(--orange);color:var(--orange);}
 
-/* ── CALENDAR ── */
-.cal-grid-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
-.cal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;}
-.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.cal-nav{background:none;border:none;color:var(--text2);cursor:pointer;font-size:18px;padding:2px 5px;border-radius:4px;}.cal-nav:hover{color:var(--text);background:var(--surface2);}
-.cal-month-label{font-size:13px;font-weight:700;color:var(--text);}
-.cal-member-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.cal-member-name{font-weight:700;color:var(--text);font-size:13px;}
-.cal-abs-count{font-family:var(--mono);font-size:11px;color:var(--text3);}
-.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
-.cal-day-label{font-size:9px;font-weight:700;color:var(--text3);text-align:center;padding:3px 0;text-transform:uppercase;}
-.cal-day{font-size:11px;text-align:center;padding:4px 2px;border-radius:4px;cursor:pointer;color:var(--text2);transition:all .12s;border:1px solid transparent;user-select:none;position:relative;}
-.cal-day:hover:not(.d-other):not(.d-weekend){background:var(--surface3);color:var(--text);}
-.cal-day.d-other{color:var(--text3);opacity:.25;pointer-events:none;}
-.cal-day.d-weekend{color:var(--text3);background:rgba(42,47,69,.3);cursor:default;}
-.cal-day.d-holiday{color:var(--yellow);background:rgba(247,212,79,.08);cursor:pointer;font-weight:700;}
-.cal-day.d-holiday-off{color:var(--text2);background:rgba(247,212,79,.03);border:1px dashed rgba(247,212,79,.3);cursor:pointer;font-weight:700;}
-.cal-day.d-absent{background:rgba(247,111,111,.25);border-color:rgba(247,111,111,.5);color:var(--red);font-weight:700;}
-.cal-day.d-half{background:rgba(247,156,79,.2);border-color:rgba(247,156,79,.4);color:var(--orange);font-weight:700;}
-.cal-day.d-today{outline:1px solid var(--accent);}
-.cal-legend{display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--text3);flex-wrap:wrap;}
-.cal-legend span{display:flex;align-items:center;gap:4px;}
+/* ── PLANNING TABLEAU ABSENCES ── */
+.planning-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border);background:var(--surface);}
+.planning-table{border-collapse:collapse;min-width:100%;table-layout:fixed;}
+.planning-table th,.planning-table td{border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+.planning-table tr:last-child td{border-bottom:none;}
+.planning-table th:last-child,.planning-table td:last-child{border-right:none;}
+.pt-member-col{width:160px;min-width:140px;position:sticky;left:0;z-index:2;background:var(--surface);padding:8px 12px;font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;}
+.pt-member-col .pt-role{font-size:10px;color:var(--text3);font-weight:400;margin-top:1px;}
+.pt-total-col{width:60px;min-width:60px;position:sticky;right:0;z-index:2;background:var(--surface2);text-align:center;font-size:11px;font-family:var(--mono);padding:0 4px;color:var(--text2);white-space:nowrap;}
+.pt-day-header{width:32px;min-width:32px;text-align:center;padding:5px 2px;background:var(--surface2);user-select:none;vertical-align:middle;}
+.pt-day-header .pt-dnum{font-family:var(--mono);font-weight:700;font-size:11px;color:var(--text2);line-height:1;}
+.pt-day-header .pt-dletter{font-size:9px;color:var(--text3);margin-top:2px;text-transform:uppercase;}
+.pt-day-header.ph-we{background:var(--surface3);}
+.pt-day-header.ph-we .pt-dnum,.pt-day-header.ph-we .pt-dletter{opacity:.4;}
+.pt-day-header.ph-hol{background:rgba(247,212,79,.12);}
+.pt-day-header.ph-hol .pt-dnum{color:var(--yellow);}
+.pt-day-header.ph-hol-off{opacity:.45;}
+.pt-day-header.ph-today .pt-dnum{color:var(--accent);font-weight:900;}
+.pt-header-label{background:var(--surface2);position:sticky;left:0;z-index:3;padding:5px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;}
+.pt-cell{width:32px;min-width:32px;height:34px;text-align:center;vertical-align:middle;cursor:pointer;transition:background .1s;user-select:none;position:relative;}
+.pt-cell:hover:not(.pt-we):not(.pt-hol-off){filter:brightness(1.3);}
+.pt-cell.pt-we{background:rgba(42,47,69,.2);cursor:default;}
+.pt-cell.pt-hol-off{cursor:default;opacity:.35;}
+.pt-cell.pt-absent{background:rgba(247,111,111,.3);}
+.pt-cell.pt-absent::after{content:'';display:block;width:10px;height:10px;border-radius:50%;background:var(--red);margin:0 auto;}
+.pt-cell.pt-half{background:rgba(247,156,79,.25);}
+.pt-cell.pt-half::after{content:'';display:block;width:10px;height:10px;border-radius:50%;background:var(--orange);margin:0 auto;opacity:.7;}
+.pt-cell.pt-hol-cell{background:rgba(247,212,79,.06);}
+.pt-cell.pt-today-col{outline:1px solid rgba(79,142,247,.35);outline-offset:-1px;}
+.pt-cell.pt-empty{background:transparent;}
+.pt-total-header{background:var(--surface2);position:sticky;right:0;z-index:3;text-align:center;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;padding:5px 4px;}
+.planning-legend{display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text3);flex-wrap:wrap;}
+.planning-legend span{display:flex;align-items:center;gap:5px;}
+.pl-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
 .dot{width:9px;height:9px;border-radius:3px;}
 
 /* ── NOTES SPRINT ── */
@@ -526,10 +538,13 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
   <div class="page-header">
     <div>
       <div class="page-title">Absences de l'équipe</div>
-      <div class="page-sub">Saisie libre — clic = journée, double-clic = demi-journée, re-clic = suppression</div>
+      <div class="page-sub">Clic = journée · Double-clic = demi-journée · Re-clic = suppression · Clic sur un férié = désactiver/restaurer</div>
     </div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <select id="abs-month-select" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:7px 10px;outline:none;" onchange="renderAbsences()"></select>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <button onclick="absNavMonth(-1)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);padding:6px 11px;cursor:pointer;font-size:16px;" title="Mois précédent">‹</button>
+      <span id="abs-month-label" style="font-size:13px;font-weight:700;color:var(--text);min-width:130px;text-align:center;"></span>
+      <button onclick="absNavMonth(1)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);padding:6px 11px;cursor:pointer;font-size:16px;" title="Mois suivant">›</button>
+      <button onclick="absGoToToday()" class="btn btn-ghost btn-sm">Aujourd'hui</button>
     </div>
   </div>
   <div id="absence-page-list"></div>
@@ -1458,115 +1473,160 @@ function computeCapacity(spId,start,end){
 }
 
 /* ═══════════════════════════════════════════
-   ABSENCES — page libre (sans sprint)
+   ABSENCES — tableau planning
 ═══════════════════════════════════════════ */
-const CAL_STATE={};
+let absViewYear=new Date().getFullYear();
+let absViewMonth=new Date().getMonth();
+const MONTHS_FR=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const DAYS_LETTER=['L','M','M','J','V','S','D'];
+
 function initAbsMonthSelect(){
-  const sel=document.getElementById('abs-month-select');
-  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
-  const now=new Date();
-  sel.innerHTML='';
-  // afficher 6 mois avant et 6 mois après
-  for(let i=-3;i<=6;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
-    const val=`${d.getFullYear()}-${d.getMonth()}`;
-    const opt=document.createElement('option');
-    opt.value=val;opt.textContent=`${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
-    if(i===0)opt.selected=true;
-    sel.appendChild(opt);
-  }
+  // Plus de select — on utilise la navigation par boutons
+  absViewYear=new Date().getFullYear();
+  absViewMonth=new Date().getMonth();
 }
+
+function absNavMonth(delta){
+  absViewMonth+=delta;
+  if(absViewMonth>11){absViewMonth=0;absViewYear++;}
+  if(absViewMonth<0){absViewMonth=11;absViewYear--;}
+  renderAbsences();
+}
+
+function absGoToToday(){
+  absViewYear=new Date().getFullYear();
+  absViewMonth=new Date().getMonth();
+  renderAbsences();
+}
+
 function renderAbsences(){
-  const val=document.getElementById('abs-month-select').value;
-  if(!val)return;
-  const[y,m]=val.split('-').map(Number);
-  if(!S.members.length){document.getElementById('absence-page-list').innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>Aucun membre.</p></div>';return;}
-  document.getElementById('absence-page-list').innerHTML=`<div class="cal-grid-wrap">${S.members.map(m2=>{
-    if(!CAL_STATE[m2.id])CAL_STATE[m2.id]={year:y,month:m};
-    const absCount=Object.values(S.absences[m2.id]||{}).reduce((s,v)=>s+v,0);
-    return`<div class="cal-card">
-      <div class="cal-member-header">
-        <span class="cal-member-name">${m2.name} <span style="font-size:11px;color:var(--text3);font-weight:400">${roleLabel(m2.role)}</span></span>
-        <span class="cal-abs-count" id="abs-count-${m2.id}">${absCount.toFixed(1)}j absent</span>
-      </div>
-      <div id="cal-${m2.id}"></div>
-    </div>`;
-  }).join('')}</div>`;
-  S.members.forEach(m2=>{CAL_STATE[m2.id]={year:y,month:m};renderCal(m2.id);});
-}
-function renderCal(memberId){
-  const wrap=document.getElementById('cal-'+memberId);if(!wrap)return;
-  if(!CAL_STATE[memberId])CAL_STATE[memberId]={year:new Date().getFullYear(),month:new Date().getMonth()};
-  const{year,month}=CAL_STATE[memberId];
-  const abs=S.absences[memberId]||{};
-  const DAYS=['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
-  const MONTHS=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const label=document.getElementById('abs-month-label');
+  if(label)label.textContent=MONTHS_FR[absViewMonth]+' '+absViewYear;
+
+  const el=document.getElementById('absence-page-list');
+  if(!S.members.length){
+    el.innerHTML='<div class="empty-state"><div class="empty-icon">👥</div><p>Aucun membre configuré.</p></div>';
+    return;
+  }
+
+  const year=absViewYear, month=absViewMonth;
+  const daysInMonth=new Date(year,month+1,0).getDate();
   const today=new Date().toLocaleDateString('fr-CA');
   const allH=frHolidays(year);
-  const firstDay=new Date(year,month,1);
-  const lastDay=new Date(year,month+1,0);
-  let startWd=firstDay.getDay();startWd=startWd===0?6:startWd-1;
-  let cells='';
-  DAYS.forEach(d=>{cells+=`<div class="cal-day-label">${d}</div>`;});
-  for(let i=0;i<startWd;i++)cells+=`<div class="cal-day d-other"></div>`;
-  for(let d=1;d<=lastDay.getDate();d++){
+
+  // Construire les infos de chaque jour du mois
+  const dayInfos=[];
+  for(let d=1;d<=daysInMonth;d++){
     const ds=new Date(year,month,d).toLocaleDateString('fr-CA');
-    const wd=new Date(year,month,d).getDay();
+    const wd=new Date(year,month,d).getDay(); // 0=dim
+    const wdMon=wd===0?6:wd-1; // 0=lun
     const isWe=wd===0||wd===6;
     const isH=!!allH[ds];
-    const isHDisabled=isH&&!!S.disabledHolidays[ds];
-    const absVal=abs[ds];
-    let cls='cal-day';
-    if(isWe)cls+=' d-weekend';
-    else if(isH&&!isHDisabled)cls+=' d-holiday';
-    else if(isH&&isHDisabled)cls+=' d-holiday-off';
-    else if(absVal===1)cls+=' d-absent';
-    else if(absVal===0.5)cls+=' d-half';
-    if(ds===today)cls+=' d-today';
-    const clickFn=isH?`toggleHoliday('${ds}')`:`toggleAbs('${memberId}','${ds}')`;
-    const titleTxt=isH?(isHDisabled?allH[ds]+' (jour travaillé — clic pour restaurer)':allH[ds]+' (férié — clic pour désactiver)'):absVal===1?'Absent (journée)':absVal===0.5?'Absent (demi-journée)':'';
-    cells+=`<div class="${cls}" title="${titleTxt}" onclick="${clickFn}">${d}</div>`;
+    const isHOff=isH&&!!S.disabledHolidays[ds];
+    dayInfos.push({d,ds,isWe,isH,isHOff,isToday:ds===today,holName:allH[ds]||'',letter:DAYS_LETTER[wdMon]});
   }
-  wrap.innerHTML=`
-    <div class="cal-header">
-      <button class="cal-nav" onclick="calPrev('${memberId}')">‹</button>
-      <span class="cal-month-label">${MONTHS[month]} ${year}</span>
-      <button class="cal-nav" onclick="calNext('${memberId}')">›</button>
+
+  // En-tête des jours
+  let headerHtml=`<th class="pt-header-label">Membre</th>`;
+  dayInfos.forEach(({d,isWe,isH,isHOff,isToday,holName,letter})=>{
+    let cls='pt-day-header';
+    if(isWe)cls+=' ph-we';
+    else if(isH&&!isHOff)cls+=' ph-hol';
+    else if(isH&&isHOff)cls+=' ph-hol-off';
+    if(isToday)cls+=' ph-today';
+    const title=isH?holName:'';
+    headerHtml+=`<th class="${cls}" title="${title}"><div class="pt-dnum">${d}</div><div class="pt-dletter">${letter}</div></th>`;
+  });
+  headerHtml+=`<th class="pt-total-header">Abs.</th>`;
+
+  // Lignes membres
+  let rowsHtml='';
+  S.members.forEach(m=>{
+    const abs=S.absences[m.id]||{};
+    const totalAbs=Object.values(abs).reduce((s,v)=>s+v,0);
+    let rowHtml=`<td class="pt-member-col"><div>${m.name}</div><div class="pt-role">${roleLabel(m.role)}</div></td>`;
+
+    dayInfos.forEach(({ds,isWe,isH,isHOff})=>{
+      const absVal=abs[ds];
+      let cls='pt-cell';
+      if(isWe)cls+=' pt-we';
+      else if(isH&&!isHOff)cls+=' pt-hol-cell';
+      else if(isH&&isHOff)cls+=' pt-hol-off';
+      else if(absVal===1)cls+=' pt-absent';
+      else if(absVal===0.5)cls+=' pt-half';
+      else cls+=' pt-empty';
+
+      // Clic = toggle absence, sauf weekend et férié actif (qui toggle le férié)
+      let clickFn='';
+      let title='';
+      if(isWe){
+        clickFn=''; title='Weekend';
+      } else if(isH&&!isHOff){
+        clickFn=`toggleHoliday('${ds}')`;
+        title=`${allH[ds]} — clic pour désactiver (jour de solidarité…)`;
+        cls+=' pt-hol-cell';
+      } else if(isH&&isHOff){
+        clickFn=`toggleHoliday('${ds}')`;
+        title=`${allH[ds]} (désactivé) — clic pour restaurer`;
+      } else {
+        clickFn=`toggleAbs('${m.id}','${ds}')`;
+        title=absVal===1?'Absent (journée — clic pour demi-journée)':absVal===0.5?'Absent (demi-journée — clic pour supprimer)':'Clic = journée';
+      }
+
+      rowHtml+=`<td class="${cls}" onclick="${clickFn}" title="${title}"></td>`;
+    });
+
+    const absColor=totalAbs>0?'var(--red)':'var(--text3)';
+    rowHtml+=`<td class="pt-total-col" id="abs-total-${m.id}" style="color:${absColor}">${totalAbs>0?totalAbs.toFixed(1)+'j':'—'}</td>`;
+    rowsHtml+=`<tr>${rowHtml}</tr>`;
+  });
+
+  el.innerHTML=`
+    <div class="planning-wrap">
+      <table class="planning-table">
+        <thead><tr>${headerHtml}</tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
     </div>
-    <div class="cal-days">${cells}</div>
-    <div class="cal-legend">
-      <span><div class="dot" style="background:rgba(247,111,111,.4);border:1px solid var(--red)"></div>Journée abs.</span>
-      <span><div class="dot" style="background:rgba(247,156,79,.3);border:1px solid var(--orange)"></div>Demi-journée</span>
-      <span><div class="dot" style="background:rgba(42,47,69,.5)"></div>Weekend</span>
-      <span><div class="dot" style="background:rgba(247,212,79,.15);border:1px solid var(--yellow)"></div>Férié</span>
-      <span><div class="dot" style="border:1px dashed rgba(247,212,79,.4)"></div>Férié désactivé</span>
+    <div class="planning-legend">
+      <span><div class="pl-dot" style="background:rgba(247,111,111,.35);border:1px solid rgba(247,111,111,.5)"></div>Journée d'absence</span>
+      <span><div class="pl-dot" style="background:rgba(247,156,79,.3);border:1px solid rgba(247,156,79,.5)"></div>Demi-journée</span>
+      <span><div class="pl-dot" style="background:rgba(42,47,69,.4)"></div>Weekend</span>
+      <span><div class="pl-dot" style="background:rgba(247,212,79,.12);border:1px solid rgba(247,212,79,.4)"></div>Jour férié (clic pour désactiver)</span>
+      <span><div class="pl-dot" style="background:var(--surface);border:1px dashed rgba(247,212,79,.3);opacity:.5"></div>Férié désactivé</span>
     </div>`;
 }
+
 function toggleHoliday(ds){
   if(S.disabledHolidays[ds])delete S.disabledHolidays[ds];
   else S.disabledHolidays[ds]=true;
   save();
-  // Re-render tous les cals visibles
-  S.members.forEach(m=>{if(document.getElementById('cal-'+m.id))renderCal(m.id);});
-  // Re-render capacité si un sprint est sélectionné
+  renderAbsences();
   const spId=document.getElementById('cap-sprint-select')?.value;
   if(spId)renderCapacite();
 }
+
 function toggleAbs(memberId,ds){
   if(!S.absences[memberId])S.absences[memberId]={};
   const cur=S.absences[memberId][ds];
-  // cycle: rien → 1j → 0.5j → rien
   if(cur===undefined)S.absences[memberId][ds]=1;
   else if(cur===1)S.absences[memberId][ds]=0.5;
   else delete S.absences[memberId][ds];
   save();
-  renderCal(memberId);
-  const absCount=Object.values(S.absences[memberId]||{}).reduce((s,v)=>s+v,0);
-  const el=document.getElementById('abs-count-'+memberId);
-  if(el)el.textContent=absCount.toFixed(1)+'j absent';
+  // Mise à jour cellule et total sans reconstruire tout le tableau
+  const cell=document.querySelector(`td[onclick="toggleAbs('${memberId}','${ds}')"]`);
+  if(cell){
+    const absVal=S.absences[memberId][ds];
+    cell.className='pt-cell'+(absVal===1?' pt-absent':absVal===0.5?' pt-half':' pt-empty');
+    cell.title=absVal===1?'Absent (journée — clic pour demi-journée)':absVal===0.5?'Absent (demi-journée — clic pour supprimer)':'Clic = journée';
+  }
+  const totalEl=document.getElementById('abs-total-'+memberId);
+  if(totalEl){
+    const tot=Object.values(S.absences[memberId]||{}).reduce((s,v)=>s+v,0);
+    totalEl.textContent=tot>0?tot.toFixed(1)+'j':'—';
+    totalEl.style.color=tot>0?'var(--red)':'var(--text3)';
+  }
 }
-function calPrev(mid){let{year,month}=CAL_STATE[mid];month--;if(month<0){month=11;year--;}CAL_STATE[mid]={year,month};renderCal(mid);}
-function calNext(mid){let{year,month}=CAL_STATE[mid];month++;if(month>11){month=0;year++;}CAL_STATE[mid]={year,month};renderCal(mid);}
 
 /* ═══════════════════════════════════════════
    MEMBRES
