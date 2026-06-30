@@ -548,6 +548,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
       <span id="abs-month-label" style="font-size:13px;font-weight:700;color:var(--text);min-width:130px;text-align:center;"></span>
       <button onclick="absNavMonth(1)" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);padding:6px 11px;cursor:pointer;font-size:16px;" title="Mois suivant">›</button>
       <button onclick="absGoToToday()" class="btn btn-ghost btn-sm">Aujourd'hui</button>
+      <button onclick="openIcsImport()" class="btn btn-ghost btn-sm">📥 Importer .ics</button>
     </div>
   </div>
   <div id="absence-page-list"></div>
@@ -675,6 +676,80 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-team')">Annuler</button>
       <button class="btn btn-primary" onclick="saveTeam()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL IMPORT ICS ══ -->
+<div class="modal-overlay" id="modal-ics">
+  <div class="modal" style="width:500px;">
+    <div class="modal-header">
+      <div class="modal-title">📥 Importer un calendrier Jira (.ics)</div>
+      <button class="modal-close" onclick="closeModal('modal-ics')">×</button>
+    </div>
+    <div class="info-box" style="margin-bottom:16px;">
+      <strong>Comment exporter depuis Jira :</strong><br>
+      1. Ouvre ton calendrier Jira → icône ⚙ ou menu "…"<br>
+      2. Clique sur <strong>Export</strong> ou <strong>Télécharger (.ics)</strong><br>
+      3. Sélectionne le fichier téléchargé ci-dessous<br><br>
+      Le filtre se base sur <code>CATEGORIES:leaves</code> et le nom du collaborateur est lu depuis <code>SUMMARY</code>.
+    </div>
+    <div class="form-group">
+      <label>Fichier .ics</label>
+      <input type="file" id="ics-file-input" accept=".ics,.ical" style="cursor:pointer;">
+    </div>
+    <div class="form-group">
+      <label>Catégorie iCal à filtrer (CATEGORIES:)</label>
+      <input type="text" id="ics-keyword" value="leaves" placeholder="ex: leaves">
+    </div>
+    <div class="form-group">
+      <label>Correspondance Jira (SUMMARY) → membre de l'équipe</label>
+      <div id="ics-member-map" style="display:flex;flex-direction:column;gap:6px;margin-top:4px;max-height:200px;overflow-y:auto;"></div>
+    </div>
+    <div id="ics-parse-info" style="font-size:12px;color:var(--text2);margin-top:4px;min-height:18px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ics')">Annuler</button>
+      <button class="btn btn-primary" onclick="runIcsImport()">Analyser et importer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL NOMS NON RECONNUS ══ -->
+<div class="modal-overlay" id="modal-ics-unmatched">
+  <div class="modal" style="width:580px;">
+    <div class="modal-header">
+      <div class="modal-title">👤 Collaborateurs non reconnus</div>
+      <button class="modal-close" onclick="closeModal('modal-ics-unmatched')">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">
+      Ces noms trouvés dans le calendrier Jira ne correspondent à aucun membre actuel de l'équipe.
+      Cela peut être un collaborateur qui a quitté l'équipe : vous pouvez ignorer ses congés, ou les associer à un membre existant.
+    </div>
+    <div id="ics-unmatched-list" style="max-height:320px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ics-unmatched')">Annuler l'import</button>
+      <button class="btn btn-primary" onclick="resolveIcsUnmatched()">Continuer →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL CONFLITS ICS ══ -->
+<div class="modal-overlay" id="modal-ics-confirm">
+  <div class="modal" style="width:580px;">
+    <div class="modal-header">
+      <div class="modal-title">⚠ Conflits détectés — que faire ?</div>
+      <button class="modal-close" onclick="closeModal('modal-ics-confirm')">×</button>
+    </div>
+    <div style="font-size:13px;color:var(--text2);margin-bottom:14px;">Des absences existent déjà pour certains jours. Choisissez comment les gérer :</div>
+    <div id="ics-conflict-list" style="max-height:320px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:4px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="icsConflictSelectAll('keep')">Tout garder existant</button>
+      <button class="btn btn-ghost btn-sm" onclick="icsConflictSelectAll('replace')">Tout remplacer par Jira</button>
+      <button class="btn btn-ghost btn-sm" onclick="icsConflictSelectAll('skip')">Tout ignorer</button>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ics-confirm')">Annuler</button>
+      <button class="btn btn-primary" onclick="applyIcsImport()">Appliquer l'import</button>
     </div>
   </div>
 </div>
@@ -1927,6 +2002,325 @@ function roleBadgeClass(r){return{dev:'badge-blue',tl:'badge-purple',smdev:'badg
 function isDevRole(r){return['dev','tl','smdev'].includes(r);}
 function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}
 function chartOpts(legend){return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:legend,labels:{color:'#bcc4dc',font:{size:12},boxWidth:12}}},scales:{x:{ticks:{color:'#bcc4dc',font:{size:11}},grid:{color:'rgba(42,47,69,.5)'}},y:{ticks:{color:'#bcc4dc',font:{size:11}},grid:{color:'rgba(42,47,69,.5)'}}}};}
+
+/* ═══════════════════════════════════════════
+   IMPORT ICS (Jira calendrier congés)
+═══════════════════════════════════════════ */
+let _icsParsed = []; // résultat du parsing en attente de confirmation
+let _icsConflicts = []; // { memberId, date, existing, incoming }
+let _icsToApply = []; // { memberId, date, value }
+let _icsUnmatched = []; // { name, totalDays, evs } — noms du calendrier sans membre correspondant
+
+function openIcsImport(){
+  document.getElementById('ics-file-input').value='';
+  document.getElementById('ics-keyword').value='leaves';
+  document.getElementById('ics-parse-info').textContent='';
+  renderIcsMemberMap();
+  document.getElementById('modal-ics').classList.add('open');
+}
+
+function renderIcsMemberMap(){
+  // Affiche une ligne par membre : on saisit le nom tel qu'il apparaît dans Jira, qui pointe vers le membre de l'app
+  const el=document.getElementById('ics-member-map');
+  if(!S.members.length){el.innerHTML='<div style="color:var(--text2);font-size:13px;">Aucun membre défini.</div>';return;}
+  el.innerHTML=S.members.map(m=>`
+    <div style="display:flex;align-items:center;gap:8px;">
+      <input type="text" id="ics-map-${m.id}" placeholder="Nom tel qu'écrit dans Jira"
+        value="${m.name}"
+        style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:13px;padding:6px 10px;outline:none;">
+      <span style="color:var(--text2);font-size:13px;">→</span>
+      <span style="min-width:140px;font-size:13px;font-weight:600;color:var(--text)">${m.name}</span>
+    </div>`).join('');
+}
+
+function parseIcs(text){
+  // Parse un fichier iCal et retourne les événements sous forme {summary, dtstart, dtend, organizer}
+  const events=[];
+  const lines=text.replace(/\r\n[ \t]/g,'').replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  let current=null;
+  for(const raw of lines){
+    const line=raw.trim();
+    if(line==='BEGIN:VEVENT'){current={};}
+    else if(line==='END:VEVENT'){if(current)events.push(current);current=null;}
+    else if(current){
+      // Gestion des propriétés avec paramètres (ex: DTSTART;VALUE=DATE:20240603)
+      const colon=line.indexOf(':');
+      if(colon<0)continue;
+      const key=line.slice(0,colon).split(';')[0].toUpperCase();
+      const val=line.slice(colon+1).trim();
+      if(key==='SUMMARY')current.summary=val;
+      else if(key==='CATEGORIES')current.categories=val;
+      else if(key==='DTSTART')current.dtstart=parseIcsDate(line.slice(0,colon),val);
+      else if(key==='DTEND')current.dtend=parseIcsDate(line.slice(0,colon),val);
+      else if(key==='ORGANIZER')current.organizer=val.replace(/^.*CN=/i,'').replace(/;.*/,'').trim();
+      else if(key==='ATTENDEE'&&val.includes('CN=')){
+        // Certains calendriers Jira mettent le nom dans ATTENDEE
+        if(!current.attendees)current.attendees=[];
+        const cn=val.replace(/^.*CN=/i,'').replace(/[;:].*/,'').trim();
+        if(cn)current.attendees.push(cn);
+      }
+      else if(key==='DESCRIPTION'&&!current.organizer){
+        // Fallback : parfois le nom est dans la description
+        current.description=val;
+      }
+    }
+  }
+  return events;
+}
+
+function parseIcsDate(keyWithParams,val){
+  // Retourne une date locale au format YYYY-MM-DD
+  // Gère VALUE=DATE (journée entière) et TZID (avec timezone)
+  const allDay=keyWithParams.includes('VALUE=DATE')||/^\d{8}$/.test(val.trim());
+  const v=val.trim().replace(/[TZ]/g,'');
+  if(allDay||v.length>=8){
+    const y=v.slice(0,4),m=v.slice(4,6),d=v.slice(6,8);
+    return`${y}-${m}-${d}`;
+  }
+  return null;
+}
+
+function getDatesInRange(dtstart,dtend){
+  // Retourne tous les jours ouvrés entre dtstart (inclus) et dtend (exclu pour iCal all-day)
+  const dates=[];
+  if(!dtstart)return dates;
+  const end=dtend||dtstart;
+  const d=new Date(dtstart+'T12:00:00');
+  const e=new Date(end+'T12:00:00');
+  // Pour les événements all-day, DTEND est exclu (convention iCal)
+  while(d<e){
+    const ds=d.toLocaleDateString('fr-CA');
+    const wd=d.getDay();
+    if(wd!==0&&wd!==6)dates.push(ds); // exclure weekends
+    d.setDate(d.getDate()+1);
+  }
+  // Si dtstart===dtend ou pas de dtend, inclure dtstart seul
+  if(!dates.length&&dtstart){
+    const wd=new Date(dtstart+'T12:00:00').getDay();
+    if(wd!==0&&wd!==6)dates.push(dtstart);
+  }
+  return dates;
+}
+
+function matchMember(name){
+  // Correspondance souple : le texte (SUMMARY) contient le nom du membre, peu importe le reste
+  if(!name)return null;
+  const n=name.trim().toLowerCase().replace(/\s+/g,' ');
+  if(!n)return null;
+
+  // 1. Le texte contient le mapping manuel (nom Jira saisi par l'utilisateur)
+  for(const m of S.members){
+    const mapped=(document.getElementById('ics-map-'+m.id)?.value||'').trim().toLowerCase().replace(/\s+/g,' ');
+    if(mapped&&n.includes(mapped))return m;
+  }
+  // 2. Le texte contient le nom complet du membre (ex: "AYMERIC IMBEAUD: Vacances d'été" contient "aymeric imbeaud")
+  for(const m of S.members){
+    const full=m.name.trim().toLowerCase().replace(/\s+/g,' ');
+    if(full&&n.includes(full))return m;
+  }
+  // 3. Égalité stricte (cas où le mapping est un alias complètement différent)
+  for(const m of S.members){
+    const mapped=(document.getElementById('ics-map-'+m.id)?.value||m.name).trim().toLowerCase();
+    if(mapped===n)return m;
+  }
+  // 4. Le texte contient prénom ET nom séparément (gère les ordres inversés : "Imbeaud Aymeric")
+  for(const m of S.members){
+    const parts=m.name.trim().toLowerCase().split(/\s+/).filter(p=>p.length>=2);
+    if(parts.length>=2&&parts.every(p=>n.includes(p)))return m;
+  }
+  // 5. Fallback : prénom seul (premier mot du membre), évite les mots trop courts (<3 lettres)
+  for(const m of S.members){
+    const firstWord=m.name.trim().toLowerCase().split(/\s+/)[0];
+    if(firstWord&&firstWord.length>=3&&n.includes(firstWord))return m;
+  }
+  // 6. Fallback : nom de famille seul (dernier mot du membre)
+  for(const m of S.members){
+    const lastWord=m.name.trim().toLowerCase().split(/\s+/).slice(-1)[0];
+    if(lastWord&&lastWord.length>=3&&n.includes(lastWord))return m;
+  }
+  return null;
+}
+
+function runIcsImport(){
+  const file=document.getElementById('ics-file-input').files[0];
+  if(!file){alert('Veuillez sélectionner un fichier .ics');return;}
+  const categoryFilter=(document.getElementById('ics-keyword').value||'leaves').trim().toLowerCase();
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    const events=parseIcs(text);
+    const infoEl=document.getElementById('ics-parse-info');
+    infoEl.textContent=`${events.length} événement(s) trouvé(s) dans le fichier.`;
+
+    // Filtrer sur CATEGORIES (ex: CATEGORIES:leaves)
+    const congés=events.filter(ev=>ev.categories&&ev.categories.toLowerCase().split(',').map(c=>c.trim()).includes(categoryFilter));
+    if(!congés.length){
+      infoEl.style.color='var(--red)';
+      infoEl.textContent=`Aucun événement avec CATEGORIES:"${categoryFilter}" trouvé. Vérifiez la catégorie saisie.`;
+      return;
+    }
+
+    // Construire la liste des absences à importer — le nom est dans SUMMARY
+    const toApply=[];
+    const unmatchedNames=new Map(); // nom → liste d'événements concernés
+    for(const ev of congés){
+      const name=(ev.summary||'').trim();
+      const member=matchMember(name);
+      const dates=getDatesInRange(ev.dtstart,ev.dtend);
+      const isHalf=ev.dtstart&&ev.dtend&&ev.dtstart===ev.dtend;
+      const value=isHalf?0.5:1;
+      if(!member){
+        if(!unmatchedNames.has(name))unmatchedNames.set(name,[]);
+        unmatchedNames.get(name).push({dates,value});
+        continue;
+      }
+      for(const d of dates)toApply.push({memberId:member.id,memberName:member.name,date:d,value});
+    }
+
+    infoEl.style.color='var(--green)';
+    infoEl.textContent=`${congés.length} événement(s) "${categoryFilter}" trouvé(s) — ${toApply.length} jour(s) reconnus, ${unmatchedNames.size} nom(s) non reconnu(s).`;
+
+    _icsToApply=toApply;
+    _icsUnmatched=[...unmatchedNames.entries()].map(([name,evs])=>({
+      name,
+      totalDays:evs.reduce((s,x)=>s+x.dates.length,0),
+      evs
+    }));
+
+    if(_icsUnmatched.length){
+      renderIcsUnmatched();
+      closeModal('modal-ics');
+      document.getElementById('modal-ics-unmatched').classList.add('open');
+    } else {
+      proceedToConflictsOrApply();
+    }
+  };
+  reader.readAsText(file,'UTF-8');
+}
+
+function renderIcsUnmatched(){
+  const el=document.getElementById('ics-unmatched-list');
+  const memberOptions=S.members.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  el.innerHTML=`<table class="data-table" style="font-size:13px;">
+    <thead><tr><th>Nom dans Jira</th><th>Jours concernés</th><th>Action</th></tr></thead>
+    <tbody>${_icsUnmatched.map((u,i)=>`<tr>
+      <td style="font-weight:600;color:var(--text)">${u.name||'(vide)'}</td>
+      <td style="font-family:var(--mono)">${u.totalDays}j</td>
+      <td>
+        <select id="ics-unmatched-${i}" onchange="onUnmatchedActionChange(${i})" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:4px 8px;outline:none;width:100%;">
+          <option value="ignore">Ignorer (collaborateur parti)</option>
+          <option value="map">Associer à un membre existant</option>
+        </select>
+        <select id="ics-unmatched-target-${i}" style="display:none;margin-top:5px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:4px 8px;outline:none;width:100%;">
+          ${memberOptions}
+        </select>
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+function onUnmatchedActionChange(i){
+  const action=document.getElementById('ics-unmatched-'+i).value;
+  const targetSel=document.getElementById('ics-unmatched-target-'+i);
+  targetSel.style.display=action==='map'?'block':'none';
+}
+
+function resolveIcsUnmatched(){
+  // Applique les choix faits sur les noms non reconnus
+  _icsUnmatched.forEach((u,i)=>{
+    const action=document.getElementById('ics-unmatched-'+i)?.value;
+    if(action==='map'){
+      const targetId=document.getElementById('ics-unmatched-target-'+i)?.value;
+      const member=S.members.find(m=>m.id===targetId);
+      if(member){
+        for(const ev of u.evs){
+          for(const d of ev.dates)_icsToApply.push({memberId:member.id,memberName:member.name,date:d,value:ev.value});
+        }
+      }
+    }
+    // action === 'ignore' → ne rien faire, ces jours sont définitivement écartés
+  });
+  proceedToConflictsOrApply();
+}
+
+function proceedToConflictsOrApply(){
+  _icsConflicts=_icsToApply.filter(({memberId,date,value})=>{
+    const existing=S.absences[memberId]?.[date];
+    return existing!==undefined&&existing!==value;
+  }).map(c=>({...c,existing:S.absences[c.memberId]?.[c.date]}));
+
+  if(_icsConflicts.length){
+    renderIcsConflicts();
+    closeModal('modal-ics-unmatched');
+    closeModal('modal-ics');
+    document.getElementById('modal-ics-confirm').classList.add('open');
+  } else {
+    closeModal('modal-ics-unmatched');
+    applyIcsImport();
+  }
+}
+
+function renderIcsConflicts(){
+  const el=document.getElementById('ics-conflict-list');
+  const MONTHS=MONTHS_FR;
+  el.innerHTML=`<table class="data-table" style="font-size:13px;">
+    <thead><tr><th>Membre</th><th>Date</th><th>Existant</th><th>Jira</th><th>Action</th></tr></thead>
+    <tbody>${_icsConflicts.map((c,i)=>{
+      const [y,m,d]=c.date.split('-');
+      const dateLabel=`${d}/${m}/${y}`;
+      const existingLabel=c.existing===1?'Journée':c.existing===0.5?'½ journée':'—';
+      const incomingLabel=c.value===1?'Journée':'½ journée';
+      return`<tr>
+        <td style="font-weight:600;color:var(--text)">${c.memberName}</td>
+        <td style="font-family:var(--mono)">${dateLabel}</td>
+        <td><span class="badge badge-orange">${existingLabel}</span></td>
+        <td><span class="badge badge-blue">${incomingLabel}</span></td>
+        <td>
+          <select id="ics-conflict-${i}" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);font-size:12px;padding:4px 8px;outline:none;">
+            <option value="replace">Remplacer par Jira</option>
+            <option value="keep">Garder existant</option>
+            <option value="skip">Ignorer</option>
+          </select>
+        </td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function icsConflictSelectAll(action){
+  _icsConflicts.forEach((_,i)=>{
+    const sel=document.getElementById('ics-conflict-'+i);
+    if(sel)sel.value=action;
+  });
+}
+
+function applyIcsImport(){
+  // Récupérer les décisions pour les conflits
+  const conflictDecisions={};
+  _icsConflicts.forEach((c,i)=>{
+    const sel=document.getElementById('ics-conflict-'+i);
+    conflictDecisions[`${c.memberId}_${c.date}`]=sel?sel.value:'replace';
+  });
+
+  let applied=0,skipped=0;
+  for(const {memberId,date,value} of _icsToApply){
+    if(!S.absences[memberId])S.absences[memberId]={};
+    const existing=S.absences[memberId][date];
+    if(existing!==undefined&&existing!==value){
+      // Conflit : appliquer la décision
+      const decision=conflictDecisions[`${memberId}_${date}`]||'replace';
+      if(decision==='keep'||decision==='skip'){skipped++;continue;}
+    }
+    S.absences[memberId][date]=value;
+    applied++;
+  }
+
+  save();
+  closeModal('modal-ics-confirm');
+  closeModal('modal-ics');
+  renderAbsences();
+  alert(`✅ Import terminé : ${applied} jour(s) importé(s), ${skipped} ignoré(s).`);
+}
 
 /* ═══════════════════════════════════════════
    INIT
