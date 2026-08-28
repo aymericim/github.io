@@ -346,7 +346,7 @@ input[type="number"]::-webkit-outer-spin-button,input[type="number"]::-webkit-in
       <div class="chart-wrap"><canvas id="chart-predic"></canvas></div>
     </div>
     <div class="card">
-      <div class="card-title">VELOM — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">moy. PREDIC 3 sprints préc.</span></div>
+      <div class="card-title">VELOM — évolution <span style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;">moy. PREDIC sprint N + 2 préc.</span></div>
       <div class="chart-wrap"><canvas id="chart-velom"></canvas></div>
     </div>
     <div class="card">
@@ -1137,17 +1137,17 @@ function renderDetail(id){
 
   // ── KPIs contextualisés ──
   const sprintIdx=S.sprints.findIndex(x=>x.id===id);
-  // VELOM : moyenne PREDIC des 3 sprints terminés qui PRÉCÈDENT ce sprint dans la liste
-  const prevDone=S.sprints.slice(0,sprintIdx).filter(x=>x.status==='done');
-  const last3prev=prevDone.slice(-3);
+  // VELOM : moyenne PREDIC des sprints N, N-1, N-2 (le sprint courant inclus), parmi les sprints terminés
+  const doneUpToHere=S.sprints.slice(0,sprintIdx+1).filter(x=>x.status==='done');
+  const last3prev=doneUpToHere.slice(-3);
   const velom=last3prev.length>0
     ? last3prev.reduce((a,x)=>a+(spPredic(x)||0),0)/last3prev.length
     : null;
   const velomLabel=velom!=null?(velom*100).toFixed(0)+'%':'—';
   const velomAlert=velom!=null?(velom>=1?'alert-ok':velom>=0.85?'alert-warn':'alert-fail'):'';
   const velomInfo=velom!=null
-    ? `Moy. ${last3prev.length} sprint${last3prev.length>1?'s':''} préc. (${last3prev.map(x=>x.name).join(', ')})`
-    : last3prev.length===0?'Pas de sprints précédents terminés':'—';
+    ? `Moy. ${last3prev.length} sprint${last3prev.length>1?'s':''} (${last3prev.map(x=>x.name).join(', ')})`
+    : 'Sprint non terminé ou pas de données';
 
   // KPIs qualité anomalies
   const a=sp.anomalies||{};
@@ -1908,11 +1908,10 @@ function renderDashboard(){
       {label:'Cible 100%',data:done.map(()=>100),borderColor:'rgba(255,255,255,.15)',borderWidth:1,borderDash:[4,4],pointRadius:0,fill:false}
     ]},options:{...chartOpts(true),scales:{...chartOpts(true).scales,y:{...chartOpts(true).scales.y,min:0,suggestedMax:120,ticks:{...chartOpts(true).scales.y.ticks,callback:v=>v+'%'}}}}});
 
-  // ── VELOM : pour chaque sprint terminé, moy PREDIC des 3 précédents ──
+  // ── VELOM : pour chaque sprint terminé, moy PREDIC de lui-même + 2 précédents ──
   const velomData=done.map((_,i,arr)=>{
-    const prev3=arr.slice(Math.max(0,i-3),i);
-    if(!prev3.length)return null;
-    const avg=prev3.reduce((a,x)=>{const p=spPredic(x);return a+(p||0);},0)/prev3.length;
+    const window3=arr.slice(Math.max(0,i-2),i+1);
+    const avg=window3.reduce((a,x)=>{const p=spPredic(x);return a+(p||0);},0)/window3.length;
     return Math.round(avg*100);
   });
   const velomCtx=document.getElementById('chart-velom').getContext('2d');
